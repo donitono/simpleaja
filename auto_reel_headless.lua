@@ -89,7 +89,33 @@ end
 local function fastBobber()
     if not isRunning or not settings.fastBobber then return end
     
-    -- Look for bobber in workspace
+    -- Method 1: Use handlebobber RemoteEvent for instant control
+    pcall(function()
+        local replicatedStorage = game:GetService("ReplicatedStorage")
+        local handlebobberEvent = replicatedStorage:FindFirstChild("shared")
+        if handlebobberEvent then
+            handlebobberEvent = handlebobberEvent:FindFirstChild("modules")
+            if handlebobberEvent then
+                handlebobberEvent = handlebobberEvent:FindFirstChild("fishing")
+                if handlebobberEvent then
+                    handlebobberEvent = handlebobberEvent:FindFirstChild("rodresources")
+                    if handlebobberEvent then
+                        handlebobberEvent = handlebobberEvent:FindFirstChild("events")
+                        if handlebobberEvent then
+                            handlebobberEvent = handlebobberEvent:FindFirstChild("handlebobber")
+                            if handlebobberEvent then
+                                -- Fire instant bobber landing
+                                handlebobberEvent:FireServer("instant_land")
+                                handlebobberEvent:FireServer("ready")
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+    
+    -- Method 2: Physical bobber acceleration (backup method)
     local workspace = game.Workspace
     for _, obj in pairs(workspace:GetDescendants()) do
         if obj.Name == "Bobber" or obj.Name == "FishingBobber" or string.find(obj.Name:lower(), "bobber") then
@@ -177,11 +203,69 @@ local function instantReel()
     -- Also check for any fishing-related RemoteEvents
     pcall(function()
         local replicatedStorage = game:GetService("ReplicatedStorage")
-        local events = replicatedStorage:FindFirstChild("Events")
+        
+        -- Method 1: Standard shared events
+        local events = replicatedStorage:FindFirstChild("shared")
         if events then
-            local reelEvent = events:FindFirstChild("Reel") or events:FindFirstChild("FishReel")
-            if reelEvent then
-                reelEvent:FireServer()
+            events = events:FindFirstChild("modules")
+            if events then
+                events = events:FindFirstChild("fishing")
+                if events then
+                    events = events:FindFirstChild("rodresources")
+                    if events then
+                        events = events:FindFirstChild("events")
+                        if events then
+                            -- Use handlebobber for instant reel
+                            local handlebobberEvent = events:FindFirstChild("handlebobber")
+                            if handlebobberEvent then
+                                handlebobberEvent:FireServer("reel")
+                            end
+                            
+                            -- Also try direct reel events
+                            local reelEvent = events:FindFirstChild("reel")
+                            if reelEvent then
+                                reelEvent:FireServer()
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        
+        -- Method 2: Player-specific rod events (from dump analysis)
+        local character = LocalPlayer.Character
+        if character then
+            for _, tool in pairs(character:GetChildren()) do
+                if tool:IsA("Tool") and string.find(tool.Name:lower(), "rod") then
+                    local rodEvents = tool:FindFirstChild("events")
+                    if rodEvents then
+                        local handlebobber = rodEvents:FindFirstChild("handlebobber")
+                        if handlebobber then
+                            handlebobber:FireServer("instant_reel")
+                        end
+                        
+                        local catchfinish = rodEvents:FindFirstChild("catchfinish")
+                        if catchfinish then
+                            catchfinish:FireServer()
+                        end
+                    end
+                end
+            end
+        end
+        
+        -- Method 3: Backpack rod events
+        local backpack = LocalPlayer.Backpack
+        if backpack then
+            for _, tool in pairs(backpack:GetChildren()) do
+                if tool:IsA("Tool") and string.find(tool.Name:lower(), "rod") then
+                    local rodEvents = tool:FindFirstChild("events")
+                    if rodEvents then
+                        local handlebobber = rodEvents:FindFirstChild("handlebobber")
+                        if handlebobber then
+                            handlebobber:FireServer("instant_reel")
+                        end
+                    end
+                end
             end
         end
     end)
