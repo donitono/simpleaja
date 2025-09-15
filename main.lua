@@ -13,14 +13,25 @@ _G.FischAutoToolsCleanup = _G.FischAutoToolsCleanup or {
 
 -- Load Kavo UI Library
 print("📚 Loading Kavo UI Library...")
-local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/kavo.lua"))()
+local success, Kavo = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/kavo.lua"))()
+end)
+
+if not success or not Kavo then
+    warn("❌ Failed to load Kavo UI Library!")
+    return
+end
 
 -- Load both features directly  
 print("🔍 Loading Auto Appraiser...")
-loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_appraiser.lua"))()
+pcall(function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_appraiser.lua"))()
+end)
 
 print("🎣 Loading Auto Reel Instant...")
-loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_reel_instant.lua"))()
+pcall(function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_reel_instant.lua"))()
+end)
 
 -- Create UI with separate tabs for each feature
 local UI = Kavo.CreateLib("🎣 Fisch Tools", "Synapse")
