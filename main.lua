@@ -116,12 +116,25 @@ ReelSection:NewToggle("🚫 Zero Animations", "Block all fishing animations", fu
     end
 end)
 
+ReelSection:NewToggle("🚀 Instant Cast", "Speed up rod casting 5x faster", function(state)
+    if _G.AutoReelHeadless then
+        _G.AutoReelHeadless.setInstantCast(state)
+    end
+end)
+
+ReelSection:NewToggle("💨 Fast Bobber", "Accelerate bobber to water instantly", function(state)
+    if _G.AutoReelHeadless then
+        _G.AutoReelHeadless.setFastBobber(state)
+    end
+end)
+
 local ReelInfoSection = ReelTab:NewSection("Features Information")
 ReelInfoSection:NewLabel("🎮 Available features:")
 ReelInfoSection:NewLabel("• Silent instant fishing")
-ReelInfoSection:NewLabel("• No movement required")
-ReelInfoSection:NewLabel("• Aggressive animation blocking")
-ReelInfoSection:NewLabel("• Automatic reel detection")
+ReelInfoSection:NewLabel("• Ultra-fast reel detection")
+ReelInfoSection:NewLabel("• Instant rod casting (5x speed)")
+ReelInfoSection:NewLabel("• Fast bobber landing")
+ReelInfoSection:NewLabel("• Zero animations & movement")
 
 -- Status Tab Content
 local SystemSection = StatusTab:NewSection("System Status")
@@ -172,41 +185,10 @@ local EmergencySection = SettingsTab:NewSection("🚨 Emergency Controls")
 EmergencySection:NewButton("🛑 Emergency Stop", "Stop ALL processes and clean memory immediately", function()
     print("🚨 EMERGENCY STOP INITIATED FROM UI 🚨")
     
-    local function emergencyStop()
-        local totalStopped = 0
-        
-        -- Stop all processes
-        if _G.AutoAppraiserHeadless then
-            pcall(function()
-                _G.AutoAppraiserHeadless.stop()
-                totalStopped = totalStopped + 1
-            end)
-        end
-        
-        if _G.AutoReelHeadless then
-            pcall(function()
-                _G.AutoReelHeadless.stop()
-                totalStopped = totalStopped + 1
-            end)
-        end
-        
-        -- Clean globals
-        _G.AutoAppraiserHeadless = nil
-        _G.AutoReelHeadless = nil
-        
-        -- Force garbage collection
-        collectgarbage("collect")
-        
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "🛑 Emergency Stop";
-            Text = "All processes stopped! Memory cleaned.";
-            Duration = 5;
-        })
-        
-        print("✅ Emergency stop completed! Stopped: " .. totalStopped .. " processes")
-    end
-    
-    emergencyStop()
+    -- Load and execute the working emergency_stop.lua file
+    pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/emergency_stop.lua"))()
+    end)
 end)
 
 EmergencySection:NewLabel("⚠️ Use when game is lagging badly")

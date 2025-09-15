@@ -9,15 +9,110 @@ local Players = game:GetService('Players')
 local RunService = game:GetService('RunService')
 local LocalPlayer = Players.LocalPlayer
 
+-- GUI Change Detection for instant response
+local function setupGUIListener()
+    local playerGui = LocalPlayer.PlayerGui
+    
+    -- Listen for fishing GUI changes
+    playerGui.ChildAdded:Connect(function(child)
+        if child.Name == "FishingGUI" and isRunning then
+            -- Immediate check when fishing GUI appears
+            task.wait(0.01) -- Tiny delay to ensure GUI is ready
+            instantReel()
+        end
+    end)
+    
+    -- Monitor existing fishing GUI
+    local fishingGui = playerGui:FindFirstChild("FishingGUI")
+    if fishingGui then
+        fishingGui.ChildAdded:Connect(function(child)
+            if isRunning and (child.Name == "Reel" or child.Name == "Shake") then
+                task.wait(0.01) -- Tiny delay to ensure button is ready  
+                instantReel()
+            end
+        end)
+        
+        -- Also listen for property changes
+        fishingGui.DescendantAdded:Connect(function(descendant)
+            if isRunning and descendant:IsA("GuiButton") and (descendant.Name == "Reel" or descendant.Name == "Shake") then
+                task.wait(0.01)
+                instantReel()
+            end
+        end)
+    end
+end
+
 -- Variables
 local isRunning = false
 local heartbeatConnection = nil
+local steppedConnection = nil
+local renderSteppedConnection = nil
 local settings = {
     silentMode = true,
     instantReel = true,
     autoShake = true,
-    zeroAnimation = true
+    zeroAnimation = true,
+    instantCast = true,  -- New feature
+    fastBobber = true    -- New feature
 }
+
+end
+
+-- Instant Cast System - Speed up rod casting
+local function instantCast()
+    if not isRunning or not settings.instantCast then return end
+    
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    -- Look for fishing rod tool
+    local tool = character:FindFirstChildOfClass("Tool")
+    if tool and string.find(tool.Name:lower(), "rod") then
+        
+        -- Speed up casting animation
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
+                if track.Animation and track.Animation.AnimationId then
+                    local animId = track.Animation.AnimationId:lower()
+                    if string.find(animId, "cast") or string.find(animId, "throw") or string.find(animId, "fish") then
+                        -- Speed up the casting animation
+                        track.Speed = 5 -- Make casting 5x faster
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Fast Bobber System - Accelerate bobber to water
+local function fastBobber()
+    if not isRunning or not settings.fastBobber then return end
+    
+    -- Look for bobber in workspace
+    local workspace = game.Workspace
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj.Name == "Bobber" or obj.Name == "FishingBobber" or string.find(obj.Name:lower(), "bobber") then
+            if obj:IsA("BasePart") and obj.AssemblyLinearVelocity then
+                -- Accelerate bobber downward if it's falling slowly
+                local velocity = obj.AssemblyLinearVelocity
+                if velocity.Y > -50 and velocity.Y < 0 then -- If falling slowly
+                    obj.AssemblyLinearVelocity = Vector3.new(velocity.X, -100, velocity.Z) -- Speed up fall
+                end
+                
+                -- Also reduce air resistance
+                if obj:FindFirstChild("BodyVelocity") then
+                    obj.BodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+                    obj.BodyVelocity.Velocity = Vector3.new(0, -100, 0)
+                end
+                
+                if obj:FindFirstChild("BodyPosition") then
+                    obj.BodyPosition.MaxForce = Vector3.new(0, 0, 0) -- Disable position control
+                end
+            end
+        end
+    end
+end
 
 -- Block fishing animations aggressively
 local function blockAnimations()
@@ -40,52 +135,96 @@ local function blockAnimations()
     end
 end
 
--- Instant reel function
+-- Instant reel function - High Priority
 local function instantReel()
     if not isRunning or not settings.instantReel then return end
     
-    -- Look for fishing GUI
+    -- Look for fishing GUI with multiple attempts
     local playerGui = LocalPlayer.PlayerGui
     local fishingGui = playerGui:FindFirstChild("FishingGUI")
     
     if fishingGui then
+        -- Priority 1: Reel button (most important)
         local reelButton = fishingGui:FindFirstChild("Reel")
-        if reelButton and reelButton.Visible then
-            -- Silent mode - fire without visual feedback
+        if reelButton and reelButton.Visible and reelButton.AbsoluteSize.X > 0 then
+            -- Multiple fire methods for maximum reliability
             if settings.silentMode then
-                firesignal(reelButton.Activated)
+                pcall(function()
+                    firesignal(reelButton.Activated)
+                    firesignal(reelButton.MouseButton1Click)
+                end)
             else
-                reelButton:TriggerEvent("MouseClick")
+                pcall(function()
+                    reelButton:TriggerEvent("MouseClick")
+                    firesignal(reelButton.Activated)
+                end)
             end
+            return -- Exit early after successful reel
         end
         
-        -- Auto shake handling
+        -- Priority 2: Auto shake handling
         if settings.autoShake then
             local shakeButton = fishingGui:FindFirstChild("Shake")
-            if shakeButton and shakeButton.Visible then
-                firesignal(shakeButton.Activated)
+            if shakeButton and shakeButton.Visible and shakeButton.AbsoluteSize.X > 0 then
+                pcall(function()
+                    firesignal(shakeButton.Activated)
+                    firesignal(shakeButton.MouseButton1Click)
+                end)
             end
         end
     end
+    
+    -- Also check for any fishing-related RemoteEvents
+    pcall(function()
+        local replicatedStorage = game:GetService("ReplicatedStorage")
+        local events = replicatedStorage:FindFirstChild("Events")
+        if events then
+            local reelEvent = events:FindFirstChild("Reel") or events:FindFirstChild("FishReel")
+            if reelEvent then
+                reelEvent:FireServer()
+            end
+        end
+    end)
 end
 
--- Main auto reel loop
+-- Main auto reel loop with maximum responsiveness
 local function startAutoReel()
-    if heartbeatConnection then
-        heartbeatConnection:Disconnect()
-    end
+    if heartbeatConnection then heartbeatConnection:Disconnect() end
+    if steppedConnection then steppedConnection:Disconnect() end  
+    if renderSteppedConnection then renderSteppedConnection:Disconnect() end
     
     isRunning = true
     
-    -- Animation blocking loop
-    heartbeatConnection = RunService.Heartbeat:Connect(function()
+    -- Setup GUI listeners for instant response
+    setupGUIListener()
+    
+    -- Multiple connections for maximum responsiveness
+    -- 1. RenderStepped - Highest priority (60+ FPS)
+    renderSteppedConnection = RunService.RenderStepped:Connect(function()
         if isRunning then
-            blockAnimations()
-            instantReel()
+            instantReel() -- Check for reel with highest priority
         end
     end)
     
-    print("✅ Auto Reel Silent started (Headless Mode)")
+    -- 2. Heartbeat - Medium priority (~30 FPS)
+    heartbeatConnection = RunService.Heartbeat:Connect(function()
+        if isRunning then
+            blockAnimations() -- Block animations
+            instantReel() -- Double check for reel
+            instantCast() -- Speed up casting
+            fastBobber() -- Accelerate bobber
+        end
+    end)
+    
+    -- 3. Stepped - Physics step (~60 FPS)
+    steppedConnection = RunService.Stepped:Connect(function()
+        if isRunning then
+            instantReel() -- Triple check for reel
+            fastBobber() -- Keep accelerating bobber
+        end
+    end)
+    
+    print("✅ Auto Reel Silent started (Ultra Fast Mode)")
 end
 
 local function stopAutoReel()
@@ -93,6 +232,14 @@ local function stopAutoReel()
     if heartbeatConnection then
         heartbeatConnection:Disconnect()
         heartbeatConnection = nil
+    end
+    if steppedConnection then
+        steppedConnection:Disconnect()
+        steppedConnection = nil
+    end
+    if renderSteppedConnection then
+        renderSteppedConnection:Disconnect()
+        renderSteppedConnection = nil
     end
     print("⏸️ Auto Reel Silent stopped (Headless Mode)")
 end
@@ -135,6 +282,16 @@ _G.AutoReelHeadless = {
     setZeroAnimation = function(enabled)
         settings.zeroAnimation = enabled
         print("🚫 Zero animation " .. (enabled and "enabled" or "disabled"))
+    end,
+    
+    setInstantCast = function(enabled)
+        settings.instantCast = enabled
+        print("🚀 Instant cast " .. (enabled and "enabled" or "disabled"))
+    end,
+    
+    setFastBobber = function(enabled)
+        settings.fastBobber = enabled
+        print("💨 Fast bobber " .. (enabled and "enabled" or "disabled"))
     end,
     
     getSettings = function()
