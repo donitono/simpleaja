@@ -19,10 +19,8 @@ local flags = {}
 -- Auto Reel Settings
 flags['autoreel'] = false
 flags['autoreeldelay'] = 0.1
-flags['superinstantreel'] = false
+flags['superinstantsilent'] = false -- NEW: Combined super instant + zero animation mode
 flags['instantbobber'] = false
-flags['superinstantnoanimation'] = false
-flags['disableallanimations'] = false
 
 -- Super Instant Variables
 local superInstantReelActive = false
@@ -41,97 +39,132 @@ local function FindRod()
     return nil
 end
 
--- ENHANCED Super Instant Reel System
-local function setupSuperInstantReel()
+-- ENHANCED Super Instant Silent Reel System (ZERO ANIMATION + INSTANT CATCH)
+local function setupSuperInstantSilentReel()
     if not superInstantReelActive then
         superInstantReelActive = true
         
-        print("🚀 [SUPER INSTANT REEL] System activated!")
+        print("🤫 [SUPER INSTANT SILENT] System activated - Zero movement mode!")
         
-        -- Main monitoring loop
+        -- Main monitoring loop with aggressive animation blocking
         lureMonitorConnection = RunService.Heartbeat:Connect(function()
-            if flags['superinstantreel'] then
+            if flags['superinstantsilent'] then
                 pcall(function()
                     local rod = FindRod()
                     if rod and rod.values then
                         local lureValue = rod.values.lure and rod.values.lure.Value or 0
                         local biteValue = rod.values.bite and rod.values.bite.Value or false
                         
-                        -- Handle animations based on settings
-                        if flags['disableallanimations'] then
-                            local character = lp.Character
-                            if character and character:FindFirstChild("Humanoid") then
-                                local humanoid = character.Humanoid
+                        -- AGGRESSIVE ANIMATION BLOCKING (Every frame)
+                        local character = lp.Character
+                        if character and character:FindFirstChild("Humanoid") then
+                            local humanoid = character.Humanoid
+                            
+                            -- Stop ALL fishing-related animations immediately
+                            for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
+                                local animName = track.Name:lower()
+                                local animId = tostring(track.Animation.AnimationId):lower()
                                 
-                                -- Stop ALL fishing animations
-                                for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
-                                    local animName = track.Name:lower()
-                                    local animId = tostring(track.Animation.AnimationId):lower()
-                                    
-                                    if animName:find("fish") or animName:find("reel") or animName:find("cast") or 
-                                       animName:find("rod") or animName:find("catch") or animName:find("lift") or
-                                       animId:find("fish") or animId:find("reel") or animId:find("cast") then
-                                        track:Stop()
-                                        track:AdjustSpeed(0)
-                                    end
+                                -- Comprehensive animation detection and blocking
+                                if animName:find("fish") or animName:find("reel") or animName:find("cast") or 
+                                   animName:find("rod") or animName:find("catch") or animName:find("lift") or
+                                   animName:find("pull") or animName:find("bobber") or animName:find("yank") or
+                                   animName:find("swing") or animName:find("throw") or animName:find("hook") or
+                                   animId:find("fish") or animId:find("reel") or animId:find("cast") or
+                                   animId:find("rod") or animId:find("catch") or animId:find("lift") or
+                                   animId:find("pull") or animId:find("bobber") or animId:find("yank") then
+                                    track:Stop() -- Immediately stop
+                                    track:AdjustSpeed(0) -- Set speed to zero
+                                    track:Destroy() -- Completely remove if possible
                                 end
                             end
+                            
+                            -- Force character to idle position (no movement)
+                            humanoid.PlatformStand = false
+                            humanoid.Sit = false
                         end
                         
-                        -- ULTRA-INSTANT catch when fish detected
-                        if lureValue >= 95 or biteValue == true then
-                            -- Multiple rapid fire for instant completion
-                            for i = 1, 5 do
+                        -- ULTRA-INSTANT SILENT CATCH (No animations, no delays)
+                        if lureValue >= 90 or biteValue == true then -- Lower threshold for faster response
+                            -- IMMEDIATE completion with multiple rapid fires
+                            for i = 1, 10 do -- Increased to 10 for better reliability
                                 ReplicatedStorage.events.reelfinished:FireServer(100, true)
+                                task.wait(0.001) -- Minimal delay between fires
                             end
                             
-                            -- Destroy reel GUI instantly
+                            -- Instantly destroy any GUI that appears
                             local reelGui = lp.PlayerGui:FindFirstChild("reel")
                             if reelGui then
                                 reelGui:Destroy()
                             end
                             
-                            print("⚡ [INSTANT CATCH] Lure:" .. lureValue .. "%")
+                            -- Force stop any animations that might have started
+                            if character and character:FindFirstChild("Humanoid") then
+                                local humanoid = character.Humanoid
+                                for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
+                                    track:Stop()
+                                    track:AdjustSpeed(0)
+                                end
+                            end
+                            
+                            print("🤫 [SILENT CATCH] Lure:" .. lureValue .. "% - ZERO MOVEMENT!")
                         end
                     end
                 end)
             end
         end)
         
-        -- GUI intercept for reel interface
+        -- GUI intercept and immediate destruction
         lp.PlayerGui.ChildAdded:Connect(function(gui)
-            if flags['superinstantreel'] and gui.Name == "reel" then
-                task.wait(0.05)
-                pcall(function()
-                    gui:Destroy()
-                    ReplicatedStorage.events.reelfinished:FireServer(100, true)
-                end)
+            if flags['superinstantsilent'] then
+                if gui.Name == "reel" or gui.Name == "shakeui" then
+                    -- Immediately destroy without any delay
+                    pcall(function()
+                        gui:Destroy()
+                        -- Fire completion events
+                        if gui.Name == "reel" then
+                            ReplicatedStorage.events.reelfinished:FireServer(100, true)
+                        elseif gui.Name == "shakeui" then
+                            ReplicatedStorage.events.shakecomplete:FireServer()
+                        end
+                    end)
+                end
             end
         end)
         
-        -- Continuous animation blocking
+        -- Continuous animation prevention loop
         task.spawn(function()
             while superInstantReelActive do
-                task.wait(0.05)
-                if flags['superinstantreel'] and flags['disableallanimations'] then
+                task.wait(0.01) -- Check every 10ms for maximum responsiveness
+                if flags['superinstantsilent'] then
                     pcall(function()
                         local character = lp.Character
                         if character and character:FindFirstChild("Humanoid") then
                             local humanoid = character.Humanoid
                             
+                            -- Aggressive animation stopping
                             for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
                                 local animName = track.Name:lower()
                                 local animId = tostring(track.Animation.AnimationId):lower()
                                 
-                                -- Expanded animation detection
-                                if animName:find("fish") or animName:find("reel") or animName:find("cast") or 
-                                   animName:find("rod") or animName:find("catch") or animName:find("lift") or
-                                   animName:find("pull") or animName:find("bobber") or animName:find("yank") or
-                                   animId:find("fish") or animId:find("reel") or animId:find("cast") then
-                                    track:Stop()
-                                    track:AdjustSpeed(0)
+                                -- Extended animation pattern matching
+                                local fishingPatterns = {
+                                    "fish", "reel", "cast", "rod", "catch", "lift", "pull", 
+                                    "bobber", "yank", "swing", "throw", "hook", "bait"
+                                }
+                                
+                                for _, pattern in pairs(fishingPatterns) do
+                                    if animName:find(pattern) or animId:find(pattern) then
+                                        track:Stop()
+                                        track:AdjustSpeed(0)
+                                        break
+                                    end
                                 end
                             end
+                            
+                            -- Keep character in neutral state
+                            humanoid.PlatformStand = false
+                            humanoid.Sit = false
                         end
                     end)
                 end
@@ -174,15 +207,21 @@ local function normalAutoReel()
     end)
 end
 
--- Auto Shake Function
+-- Auto Shake Function (Enhanced for silent mode)
 local function autoShake()
     lp.PlayerGui.ChildAdded:Connect(function(gui)
-        if gui.Name == "shakeui" and flags['autoreel'] then
-            task.wait(0.1)
+        if gui.Name == "shakeui" and (flags['autoreel'] or flags['superinstantsilent']) then
             pcall(function()
-                if gui and gui.Parent then
+                -- Immediate destruction for silent mode, small delay for normal mode
+                if flags['superinstantsilent'] then
                     gui:Destroy()
                     ReplicatedStorage.events.shakecomplete:FireServer()
+                else
+                    task.wait(0.1)
+                    if gui and gui.Parent then
+                        gui:Destroy()
+                        ReplicatedStorage.events.shakecomplete:FireServer()
+                    end
                 end
             end)
         end
@@ -190,7 +229,7 @@ local function autoShake()
 end
 
 -- Setup functions
-setupSuperInstantReel()
+setupSuperInstantSilentReel()
 autoShake()
 
 -- GUI Setup
@@ -199,10 +238,10 @@ local ReelSection = MainTab:NewSection("Reel Settings")
 local AdvancedSection = MainTab:NewSection("Advanced Settings")
 
 -- Normal Auto Reel Toggle
-ReelSection:NewToggle("Auto Reel", "Normal automatic reeling", function(state)
+ReelSection:NewToggle("Auto Reel", "Normal automatic reeling with visible animations", function(state)
     flags['autoreel'] = state
     if state then
-        flags['superinstantreel'] = false -- Disable super instant
+        flags['superinstantsilent'] = false -- Disable silent mode
         normalAutoReel()
         game.StarterGui:SetCore("SendNotification", {
             Title = "Auto Reel";
@@ -218,43 +257,24 @@ ReelSection:NewToggle("Auto Reel", "Normal automatic reeling", function(state)
     end
 end)
 
--- Super Instant Reel Toggle
-ReelSection:NewToggle("Super Instant Reel", "⚡ Ultra-fast instant catch with zero delay", function(state)
-    flags['superinstantreel'] = state
+-- Super Instant Silent Reel Toggle (COMBINED MODE)
+ReelSection:NewToggle("Super Instant Silent Reel", "🤫 ZERO MOVEMENT + INSTANT CATCH - No animations, no delays, just results!", function(state)
+    flags['superinstantsilent'] = state
     if state then
         flags['autoreel'] = false -- Disable normal auto reel
         game.StarterGui:SetCore("SendNotification", {
             Title = "Auto Reel";
-            Text = "🚀 SUPER INSTANT REEL Activated!";
+            Text = "🤫 SILENT MODE Activated! Zero movement fishing!";
             Duration = 3;
         })
-        print("🚀 [Super Instant Reel] MAXIMUM SPEED MODE!")
+        print("🤫 [Super Instant Silent] GHOST MODE - No animations, no movement!")
     else
-        flags['disableallanimations'] = false
         game.StarterGui:SetCore("SendNotification", {
             Title = "Auto Reel";
-            Text = "Super Instant Reel Disabled";
+            Text = "Silent Mode Disabled";
             Duration = 2;
         })
-    end
-end)
-
--- Disable All Animations Toggle
-ReelSection:NewToggle("Disable All Animations", "🚫 Completely disable fishing animations", function(state)
-    flags['disableallanimations'] = state
-    if state and not flags['superinstantreel'] then
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Auto Reel";
-            Text = "⚠️ Enable Super Instant Reel first!";
-            Duration = 2;
-        })
-        flags['disableallanimations'] = false
-    elseif state then
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Auto Reel";
-            Text = "🚫 All animations disabled!";
-            Duration = 2;
-        })
+        print("⏸️ [Silent Mode] Deactivated")
     end
 end)
 
@@ -280,8 +300,7 @@ local StatusSection = MainTab:NewSection("Status")
 
 -- Status Labels
 local normalReelLabel = StatusSection:NewLabel("Normal Auto Reel: Disabled")
-local superReelLabel = StatusSection:NewLabel("Super Instant Reel: Disabled")
-local animationLabel = StatusSection:NewLabel("Animation Block: Disabled")
+local silentReelLabel = StatusSection:NewLabel("Silent Instant Reel: Disabled")
 
 -- Update status labels
 task.spawn(function()
@@ -289,21 +308,20 @@ task.spawn(function()
         task.wait(1)
         
         local normalStatus = flags['autoreel'] and "Enabled" or "Disabled"
-        local superStatus = flags['superinstantreel'] and "Enabled" or "Disabled"
-        local animStatus = flags['disableallanimations'] and "Enabled" or "Disabled"
+        local silentStatus = flags['superinstantsilent'] and "Enabled" or "Disabled"
         
         normalReelLabel:UpdateLabel("Normal Auto Reel: " .. normalStatus)
-        superReelLabel:UpdateLabel("Super Instant Reel: " .. superStatus)
-        animationLabel:UpdateLabel("Animation Block: " .. animStatus)
+        silentReelLabel:UpdateLabel("Silent Instant Reel: " .. silentStatus)
     end
 end)
 
 -- Info Section
 local InfoSection = MainTab:NewSection("Information")
-InfoSection:NewLabel("🎣 Normal Auto Reel: Standard automatic reeling")
-InfoSection:NewLabel("⚡ Super Instant Reel: Ultra-fast zero-delay catch")
-InfoSection:NewLabel("🚫 Disable Animations: Remove all fishing animations")
-InfoSection:NewLabel("⚠️ Use Super Instant carefully - may be detectable")
+InfoSection:NewLabel("🎣 Normal Auto Reel: Standard reeling with animations")
+InfoSection:NewLabel("🤫 Silent Instant Reel: ZERO movement + instant catch")
+InfoSection:NewLabel("� Ghost Mode: Fish appear in inventory instantly")
+InfoSection:NewLabel("⚡ No delays, no animations, no movement!")
+InfoSection:NewLabel("⚠️ Silent mode is very powerful - use carefully")
 
 game.StarterGui:SetCore("SendNotification", {
     Title = "Auto Reel Instant";
@@ -311,10 +329,11 @@ game.StarterGui:SetCore("SendNotification", {
     Duration = 3;
 })
 
-print("🎣 Auto Reel Super Instant Script Loaded!")
+print("🤫 Auto Reel Silent Instant Script Loaded!")
 print("Features:")
-print("- Normal Auto Reel with customizable delay")
-print("- Super Instant Reel with zero animation")
-print("- Auto Shake bypass")
-print("- Animation disabling system")
-print("- Real-time status monitoring")
+print("- Normal Auto Reel with visible animations")
+print("- Silent Instant Reel with ZERO movement")
+print("- Ghost Mode: Fish appear instantly without any animation")
+print("- Auto Shake bypass for both modes")
+print("- Real-time aggressive animation blocking")
+print("- Character kept in neutral state (no fishing movements)")
