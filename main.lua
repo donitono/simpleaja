@@ -7,16 +7,16 @@
 local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/kavo.lua"))()
 local Window = Kavo.CreateLib("🎣 Fisch Auto Tools", "Ocean")
 
--- Auto-load both modules immediately
+-- Auto-load both modules immediately (Headless versions)
 task.spawn(function()
-    -- Load Auto Appraiser
+    -- Load Auto Appraiser (Headless - No UI)
     pcall(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_appraiser.lua"))()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_appraiser_headless.lua"))()
     end)
     
-    -- Load Auto Reel Silent
+    -- Load Auto Reel Silent (Headless - No UI)
     pcall(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_reel_instant.lua"))()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_reel_headless.lua"))()
     end)
     
     game.StarterGui:SetCore("SendNotification", {
@@ -32,45 +32,130 @@ local ReelTab = Window:NewTab("🤫 Auto Reel")
 local StatusTab = Window:NewTab("📊 Status")
 
 -- Auto Appraiser Tab Content
-local AppraiserSection = AppraiserTab:NewSection("Auto Appraiser Settings")
-AppraiserSection:NewLabel("✅ Auto Appraiser Module Loaded")
-AppraiserSection:NewLabel("🎯 Mutation filtering active")
-AppraiserSection:NewLabel("🚀 Auto teleport to NPCs enabled")
-AppraiserSection:NewLabel("💬 Smart dialog handling active")
-AppraiserSection:NewLabel("")
-AppraiserSection:NewLabel("📝 Available mutations:")
-AppraiserSection:NewLabel("Albino, Midas, Shiny, Golden, Diamond,")
-AppraiserSection:NewLabel("Prismarine, Frozen, Electric, Ghastly,")
-AppraiserSection:NewLabel("Mosaic, Glossy, Translucent, Negative,")
-AppraiserSection:NewLabel("Lunar, Solar, Hexed, Atlantean,")
-AppraiserSection:NewLabel("Abyssal, Mythical")
+local AppraiserSection = AppraiserTab:NewSection("Auto Appraiser Controls")
+
+AppraiserSection:NewToggle("🎯 Enable Auto Appraiser", "Toggle automatic fish/rod appraisal", function(state)
+    if _G.AutoAppraiserHeadless then
+        if state then
+            _G.AutoAppraiserHeadless.start()
+        else
+            _G.AutoAppraiserHeadless.stop()
+        end
+    end
+end)
+
+AppraiserSection:NewToggle("🔍 Filter Mutations Only", "Only appraise items with mutations", function(state)
+    if _G.AutoAppraiserHeadless then
+        _G.AutoAppraiserHeadless.setFilterMutations(state)
+    end
+end)
+
+AppraiserSection:NewToggle("🚀 Auto Teleport to NPC", "Automatically teleport to appraiser", function(state)
+    if _G.AutoAppraiserHeadless then
+        _G.AutoAppraiserHeadless.setAutoTeleport(state)
+    end
+end)
+
+AppraiserSection:NewToggle("💬 Smart Dialog Handling", "Automatically handle NPC dialogs", function(state)
+    if _G.AutoAppraiserHeadless then
+        _G.AutoAppraiserHeadless.setSmartDialog(state)
+    end
+end)
+
+local AppraiserInfoSection = AppraiserTab:NewSection("Mutation Information")
+AppraiserInfoSection:NewLabel("📝 Supported mutations:")
+AppraiserInfoSection:NewLabel("Albino, Midas, Shiny, Golden, Diamond,")
+AppraiserInfoSection:NewLabel("Prismarine, Frozen, Electric, Ghastly,")
+AppraiserInfoSection:NewLabel("Mosaic, Glossy, Translucent, Negative,")
+AppraiserInfoSection:NewLabel("Lunar, Solar, Hexed, Atlantean,")
+AppraiserInfoSection:NewLabel("Abyssal, Mythical")
 
 -- Auto Reel Tab Content  
-local ReelSection = ReelTab:NewSection("Auto Reel Settings")
-ReelSection:NewLabel("✅ Auto Reel Silent Module Loaded")
-ReelSection:NewLabel("👻 Ghost Mode (Silent) active")
-ReelSection:NewLabel("⚡ Instant reel enabled")
-ReelSection:NewLabel("🚫 Zero animations mode")
-ReelSection:NewLabel("🎣 Auto shake bypass active")
-ReelSection:NewLabel("")
-ReelSection:NewLabel("🎮 Features:")
-ReelSection:NewLabel("• Silent instant fishing")
-ReelSection:NewLabel("• No movement required")
-ReelSection:NewLabel("• Aggressive animation blocking")
-ReelSection:NewLabel("• Automatic reel detection")
+local ReelSection = ReelTab:NewSection("Auto Reel Controls")
+
+ReelSection:NewToggle("🤫 Enable Auto Reel Silent", "Toggle silent instant fishing", function(state)
+    if _G.AutoReelHeadless then
+        if state then
+            _G.AutoReelHeadless.start()
+        else
+            _G.AutoReelHeadless.stop()
+        end
+    end
+end)
+
+ReelSection:NewToggle("👻 Silent Mode", "Enable ghost mode (no visual feedback)", function(state)
+    if _G.AutoReelHeadless then
+        _G.AutoReelHeadless.setSilentMode(state)
+    end
+end)
+
+ReelSection:NewToggle("⚡ Instant Reel", "Enable instant fishing", function(state)
+    if _G.AutoReelHeadless then
+        _G.AutoReelHeadless.setInstantReel(state)
+    end
+end)
+
+ReelSection:NewToggle("🎣 Auto Shake", "Automatically handle shake events", function(state)
+    if _G.AutoReelHeadless then
+        _G.AutoReelHeadless.setAutoShake(state)
+    end
+end)
+
+ReelSection:NewToggle("🚫 Zero Animations", "Block all fishing animations", function(state)
+    if _G.AutoReelHeadless then
+        _G.AutoReelHeadless.setZeroAnimation(state)
+    end
+end)
+
+local ReelInfoSection = ReelTab:NewSection("Features Information")
+ReelInfoSection:NewLabel("🎮 Available features:")
+ReelInfoSection:NewLabel("• Silent instant fishing")
+ReelInfoSection:NewLabel("• No movement required")
+ReelInfoSection:NewLabel("• Aggressive animation blocking")
+ReelInfoSection:NewLabel("• Automatic reel detection")
 
 -- Status Tab Content
 local SystemSection = StatusTab:NewSection("System Status")
-SystemSection:NewLabel("🟢 All modules: Active")
-SystemSection:NewLabel("🎯 Auto Appraiser: Running")
-SystemSection:NewLabel("🤫 Auto Reel Silent: Running")
-SystemSection:NewLabel("")
+local appraiserStatusLabel = SystemSection:NewLabel("🎯 Auto Appraiser: Loading...")
+local reelStatusLabel = SystemSection:NewLabel("🤫 Auto Reel Silent: Loading...")
+
+-- Status update loop
+task.spawn(function()
+    while true do
+        task.wait(2)
+        
+        local appraiserStatus = "❌ Not Running"
+        local reelStatus = "❌ Not Running"
+        
+        if _G.AutoAppraiserHeadless and _G.AutoAppraiserHeadless.isRunning() then
+            appraiserStatus = "✅ Running"
+        end
+        
+        if _G.AutoReelHeadless and _G.AutoReelHeadless.isRunning() then
+            reelStatus = "✅ Running"
+        end
+        
+        appraiserStatusLabel:UpdateLabel("🎯 Auto Appraiser: " .. appraiserStatus)
+        reelStatusLabel:UpdateLabel("🤫 Auto Reel Silent: " .. reelStatus)
+    end
+end)
+
+local ControlSection = StatusTab:NewSection("Quick Controls")
+ControlSection:NewButton("🚀 Start All", "Enable both modules", function()
+    if _G.AutoAppraiserHeadless then _G.AutoAppraiserHeadless.start() end
+    if _G.AutoReelHeadless then _G.AutoReelHeadless.start() end
+end)
+
+ControlSection:NewButton("⏸️ Stop All", "Disable both modules", function()
+    if _G.AutoAppraiserHeadless then _G.AutoAppraiserHeadless.stop() end
+    if _G.AutoReelHeadless then _G.AutoReelHeadless.stop() end
+end)
 
 local InfoSection = StatusTab:NewSection("Information")
 InfoSection:NewLabel("📦 Repository: github.com/donitono/simpleaja")
 InfoSection:NewLabel("🔄 Auto-updates from GitHub")
-InfoSection:NewLabel("⚡ Clean interface mode")
-InfoSection:NewLabel("🚀 No manual loading required")
+InfoSection:NewLabel("⚡ Clean single UI interface")
+InfoSection:NewLabel("🚀 Headless background modules")
 
 -- Load Auto Reel Silent Module  
 LoaderSection:NewButton("🤫 Load Auto Reel Silent", "Load silent instant reel and normal auto reel system", function()

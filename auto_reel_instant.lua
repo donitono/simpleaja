@@ -26,12 +26,6 @@ flags['instantbobber'] = false
 local superInstantReelActive = false
 local lureMonitorConnection = nil
 
--- Register in global cleanup system  
-_G.flags = flags
-_G.superInstantReelActive = superInstantReelActive
-_G.lureMonitorConnection = lureMonitorConnection
-_G.FischAutoToolsCleanup = _G.FischAutoToolsCleanup or {connections = {}, flags = {}, modules = {}}
-
 -- Find Rod Function
 local function FindRod()
     local character = lp.Character
@@ -52,7 +46,7 @@ local function setupSuperInstantSilentReel()
         
         print("🤫 [SUPER INSTANT SILENT] System activated - Zero movement mode!")
         
-                -- Main monitoring loop with aggressive animation blocking
+        -- Main monitoring loop with aggressive animation blocking
         lureMonitorConnection = RunService.Heartbeat:Connect(function()
             if flags['superinstantsilent'] then
                 pcall(function()
@@ -72,17 +66,16 @@ local function setupSuperInstantSilentReel()
                                 local animId = tostring(track.Animation.AnimationId):lower()
                                 
                                 -- Comprehensive animation detection and blocking
-                                local fishingPatterns = {
-                                    "fish", "reel", "cast", "rod", "catch", "lift", "pull", 
-                                    "bobber", "yank", "swing", "throw", "hook", "bait"
-                                }
-                                
-                                for _, pattern in pairs(fishingPatterns) do
-                                    if animName:find(pattern) or animId:find(pattern) then
-                                        track:Stop() -- Immediately stop
-                                        track:AdjustSpeed(0) -- Set speed to zero
-                                        break
-                                    end
+                                if animName:find("fish") or animName:find("reel") or animName:find("cast") or 
+                                   animName:find("rod") or animName:find("catch") or animName:find("lift") or
+                                   animName:find("pull") or animName:find("bobber") or animName:find("yank") or
+                                   animName:find("swing") or animName:find("throw") or animName:find("hook") or
+                                   animId:find("fish") or animId:find("reel") or animId:find("cast") or
+                                   animId:find("rod") or animId:find("catch") or animId:find("lift") or
+                                   animId:find("pull") or animId:find("bobber") or animId:find("yank") then
+                                    track:Stop() -- Immediately stop
+                                    track:AdjustSpeed(0) -- Set speed to zero
+                                    track:Destroy() -- Completely remove if possible
                                 end
                             end
                             
@@ -120,10 +113,6 @@ local function setupSuperInstantSilentReel()
                 end)
             end
         end)
-        
-        -- Register connection for cleanup
-        _G.lureMonitorConnection = lureMonitorConnection
-        _G.FischAutoToolsCleanup.connections.lureMonitor = lureMonitorConnection
         
         -- GUI intercept and immediate destruction
         lp.PlayerGui.ChildAdded:Connect(function(gui)
