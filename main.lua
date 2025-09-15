@@ -21,8 +21,8 @@ task.spawn(function()
     
     game.StarterGui:SetCore("SendNotification", {
         Title = "Fisch Auto Tools";
-        Text = "🚀 All modules loaded successfully!";
-        Duration = 2;
+        Text = "� Modules loaded! Use toggles to start.";
+        Duration = 3;
     })
 end)
 
@@ -33,6 +33,10 @@ local StatusTab = Window:NewTab("📊 Status")
 
 -- Auto Appraiser Tab Content
 local AppraiserSection = AppraiserTab:NewSection("Auto Appraiser Controls")
+
+AppraiserSection:NewLabel("⚠️ Module loaded but NOT running")
+AppraiserSection:NewLabel("👆 Use toggle below to start")
+AppraiserSection:NewLabel("")
 
 AppraiserSection:NewToggle("🎯 Enable Auto Appraiser", "Toggle automatic fish/rod appraisal", function(state)
     if _G.AutoAppraiserHeadless then
@@ -72,6 +76,10 @@ AppraiserInfoSection:NewLabel("Abyssal, Mythical")
 
 -- Auto Reel Tab Content  
 local ReelSection = ReelTab:NewSection("Auto Reel Controls")
+
+ReelSection:NewLabel("⚠️ Module loaded but NOT running")
+ReelSection:NewLabel("👆 Use toggle below to start")
+ReelSection:NewLabel("")
 
 ReelSection:NewToggle("🤫 Enable Auto Reel Silent", "Toggle silent instant fishing", function(state)
     if _G.AutoReelHeadless then

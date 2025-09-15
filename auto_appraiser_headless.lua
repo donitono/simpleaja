@@ -12,6 +12,7 @@ local LocalPlayer = Players.LocalPlayer
 
 -- Variables
 local isRunning = false
+local heartbeatConnection = nil
 local settings = {
     filterMutations = true,
     autoTeleport = true,
@@ -126,9 +127,13 @@ end
 
 -- Auto appraiser loop
 local function startAutoAppraiser()
+    if heartbeatConnection then
+        heartbeatConnection:Disconnect()
+    end
+    
     isRunning = true
     
-    RunService.Heartbeat:Connect(function()
+    heartbeatConnection = RunService.Heartbeat:Connect(function()
         if isRunning then
             performAppraisal()
         end
@@ -137,24 +142,33 @@ local function startAutoAppraiser()
     print("✅ Auto Appraiser started (Headless Mode)")
 end
 
--- Start immediately
-startAutoAppraiser()
+local function stopAutoAppraiser()
+    isRunning = false
+    if heartbeatConnection then
+        heartbeatConnection:Disconnect()
+        heartbeatConnection = nil
+    end
+    print("⏸️ Auto Appraiser stopped (Headless Mode)")
+end
+
+-- DON'T start immediately - wait for user control
 
 -- Global functions for external control
 _G.AutoAppraiserHeadless = {
     start = function()
-        isRunning = true
-        print("🎯 Auto Appraiser resumed")
+        startAutoAppraiser()
     end,
     
     stop = function()
-        isRunning = false
-        print("⏸️ Auto Appraiser paused")
+        stopAutoAppraiser()
     end,
     
     toggle = function()
-        isRunning = not isRunning
-        print("🔄 Auto Appraiser " .. (isRunning and "started" or "stopped"))
+        if isRunning then
+            stopAutoAppraiser()
+        else
+            startAutoAppraiser()
+        end
     end,
     
     setFilterMutations = function(enabled)

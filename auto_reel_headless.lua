@@ -11,6 +11,7 @@ local LocalPlayer = Players.LocalPlayer
 
 -- Variables
 local isRunning = false
+local heartbeatConnection = nil
 local settings = {
     silentMode = true,
     instantReel = true,
@@ -70,10 +71,14 @@ end
 
 -- Main auto reel loop
 local function startAutoReel()
+    if heartbeatConnection then
+        heartbeatConnection:Disconnect()
+    end
+    
     isRunning = true
     
     -- Animation blocking loop
-    RunService.Heartbeat:Connect(function()
+    heartbeatConnection = RunService.Heartbeat:Connect(function()
         if isRunning then
             blockAnimations()
             instantReel()
@@ -83,24 +88,33 @@ local function startAutoReel()
     print("✅ Auto Reel Silent started (Headless Mode)")
 end
 
--- Start immediately
-startAutoReel()
+local function stopAutoReel()
+    isRunning = false
+    if heartbeatConnection then
+        heartbeatConnection:Disconnect()
+        heartbeatConnection = nil
+    end
+    print("⏸️ Auto Reel Silent stopped (Headless Mode)")
+end
+
+-- DON'T start immediately - wait for user control
 
 -- Global functions for external control
 _G.AutoReelHeadless = {
     start = function()
-        isRunning = true
-        print("🤫 Auto Reel Silent resumed")
+        startAutoReel()
     end,
     
     stop = function()
-        isRunning = false
-        print("⏸️ Auto Reel Silent paused")
+        stopAutoReel()
     end,
     
     toggle = function()
-        isRunning = not isRunning
-        print("🔄 Auto Reel Silent " .. (isRunning and "started" or "stopped"))
+        if isRunning then
+            stopAutoReel()
+        else
+            startAutoReel()
+        end
     end,
     
     setSilentMode = function(enabled)
