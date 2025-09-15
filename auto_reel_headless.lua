@@ -312,20 +312,89 @@ local function startAutoReel()
 end
 
 local function stopAutoReel()
+    print("🛑 Stopping Auto Reel Silent...")
+    
+    -- Set running flag to false first
     isRunning = false
+    
+    -- Disconnect all known connections
     if heartbeatConnection then
         heartbeatConnection:Disconnect()
         heartbeatConnection = nil
+        print("🔌 Heartbeat connection disconnected")
     end
     if steppedConnection then
         steppedConnection:Disconnect()
         steppedConnection = nil
+        print("🔌 Stepped connection disconnected")
     end
     if renderSteppedConnection then
         renderSteppedConnection:Disconnect()
         renderSteppedConnection = nil
+        print("🔌 RenderStepped connection disconnected")
     end
-    print("⏸️ Auto Reel Silent stopped (Headless Mode)")
+    
+    -- Force disconnect any suspicious connections (aggressive cleanup)
+    pcall(function()
+        local RunService = game:GetService("RunService")
+        
+        -- Check all Heartbeat connections
+        for _, connection in pairs(getconnections(RunService.Heartbeat)) do
+            if connection.Function then
+                local funcStr = tostring(connection.Function)
+                if string.find(funcStr:lower(), "instantreel") or 
+                   string.find(funcStr:lower(), "fastbobber") or
+                   string.find(funcStr:lower(), "blockanimations") then
+                    connection:Disconnect()
+                    print("🔌 Force disconnected suspicious Heartbeat")
+                end
+            end
+        end
+        
+        -- Check all RenderStepped connections
+        for _, connection in pairs(getconnections(RunService.RenderStepped)) do
+            if connection.Function then
+                local funcStr = tostring(connection.Function)
+                if string.find(funcStr:lower(), "instantreel") or 
+                   string.find(funcStr:lower(), "fastbobber") then
+                    connection:Disconnect()
+                    print("🔌 Force disconnected suspicious RenderStepped")
+                end
+            end
+        end
+        
+        -- Check all Stepped connections
+        for _, connection in pairs(getconnections(RunService.Stepped)) do
+            if connection.Function then
+                local funcStr = tostring(connection.Function)
+                if string.find(funcStr:lower(), "instantreel") or 
+                   string.find(funcStr:lower(), "fastbobber") then
+                    connection:Disconnect()
+                    print("🔌 Force disconnected suspicious Stepped")
+                end
+            end
+        end
+    end)
+    
+    -- Also disconnect GUI listeners
+    pcall(function()
+        local Players = game:GetService("Players")
+        local LocalPlayer = Players.LocalPlayer
+        local PlayerGui = LocalPlayer.PlayerGui
+        
+        for _, connection in pairs(getconnections(PlayerGui.ChildAdded)) do
+            if connection.Function then
+                local funcStr = tostring(connection.Function)
+                if string.find(funcStr:lower(), "fishinggui") or
+                   string.find(funcStr:lower(), "instantreel") then
+                    connection:Disconnect()
+                    print("🔌 Force disconnected GUI listener")
+                end
+            end
+        end
+    end)
+    
+    print("⏸️ Auto Reel Silent stopped completely!")
 end
 
 -- DON'T start immediately - wait for user control

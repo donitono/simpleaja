@@ -26,6 +26,53 @@ local function disconnectAllConnections()
         end)
     end
     
+    -- Force disconnect all RunService connections
+    local RunService = game:GetService("RunService")
+    pcall(function()
+        -- This will disconnect ALL connections - aggressive but effective
+        for _, connection in pairs(getconnections(RunService.Heartbeat)) do
+            if connection.Function then
+                local funcStr = tostring(connection.Function)
+                if string.find(funcStr:lower(), "reel") or 
+                   string.find(funcStr:lower(), "fish") or
+                   string.find(funcStr:lower(), "apprai") or
+                   string.find(funcStr:lower(), "bobber") then
+                    connection:Disconnect()
+                    disconnected = disconnected + 1
+                    print("🔌 Disconnected suspicious Heartbeat connection")
+                end
+            end
+        end
+        
+        for _, connection in pairs(getconnections(RunService.RenderStepped)) do
+            if connection.Function then
+                local funcStr = tostring(connection.Function)
+                if string.find(funcStr:lower(), "reel") or 
+                   string.find(funcStr:lower(), "fish") or
+                   string.find(funcStr:lower(), "apprai") or
+                   string.find(funcStr:lower(), "bobber") then
+                    connection:Disconnect()
+                    disconnected = disconnected + 1
+                    print("🔌 Disconnected suspicious RenderStepped connection")
+                end
+            end
+        end
+        
+        for _, connection in pairs(getconnections(RunService.Stepped)) do
+            if connection.Function then
+                local funcStr = tostring(connection.Function)
+                if string.find(funcStr:lower(), "reel") or 
+                   string.find(funcStr:lower(), "fish") or
+                   string.find(funcStr:lower(), "apprai") or
+                   string.find(funcStr:lower(), "bobber") then
+                    connection:Disconnect()
+                    disconnected = disconnected + 1
+                    print("🔌 Disconnected suspicious Stepped connection")
+                end
+            end
+        end
+    end)
+    
     return disconnected
 end
 
@@ -33,6 +80,7 @@ end
 local function cleanGlobalVariables()
     local cleaned = 0
     
+    -- Clean main globals
     if _G.AutoAppraiserHeadless then
         _G.AutoAppraiserHeadless = nil
         cleaned = cleaned + 1
@@ -44,6 +92,89 @@ local function cleanGlobalVariables()
         cleaned = cleaned + 1
         print("🧹 Auto Reel globals cleaned")
     end
+    
+    -- Clean emergency stop global
+    if _G.EmergencyStop then
+        _G.EmergencyStop = nil
+        cleaned = cleaned + 1
+        print("🧹 Emergency Stop global cleaned")
+    end
+    
+    -- Clean any other fishing-related globals
+    for key, value in pairs(_G) do
+        if type(key) == "string" then
+            local keyLower = key:lower()
+            if string.find(keyLower, "fish") or
+               string.find(keyLower, "reel") or 
+               string.find(keyLower, "apprai") or
+               string.find(keyLower, "bobber") or
+               string.find(keyLower, "auto") then
+                _G[key] = nil
+                cleaned = cleaned + 1
+                print("🧹 Cleaned suspicious global: " .. key)
+            end
+        end
+    end
+    
+    return cleaned
+end
+
+-- Function to clean GUI listeners and events
+local function cleanGUIListeners()
+    local cleaned = 0
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+    
+    -- Disconnect all GUI event listeners
+    pcall(function()
+        local PlayerGui = LocalPlayer.PlayerGui
+        
+        -- Disconnect ChildAdded connections
+        for _, gui in pairs(PlayerGui:GetChildren()) do
+            if gui:IsA("ScreenGui") then
+                for _, connection in pairs(getconnections(gui.ChildAdded)) do
+                    if connection.Function then
+                        local funcStr = tostring(connection.Function)
+                        if string.find(funcStr:lower(), "fish") or
+                           string.find(funcStr:lower(), "reel") or
+                           string.find(funcStr:lower(), "bobber") then
+                            connection:Disconnect()
+                            cleaned = cleaned + 1
+                            print("🔌 Disconnected GUI listener")
+                        end
+                    end
+                end
+                
+                -- Also check DescendantAdded
+                for _, connection in pairs(getconnections(gui.DescendantAdded)) do
+                    if connection.Function then
+                        local funcStr = tostring(connection.Function)
+                        if string.find(funcStr:lower(), "fish") or
+                           string.find(funcStr:lower(), "reel") or
+                           string.find(funcStr:lower(), "bobber") then
+                            connection:Disconnect()
+                            cleaned = cleaned + 1
+                            print("🔌 Disconnected GUI descendant listener")
+                        end
+                    end
+                end
+            end
+        end
+        
+        -- Also check PlayerGui itself
+        for _, connection in pairs(getconnections(PlayerGui.ChildAdded)) do
+            if connection.Function then
+                local funcStr = tostring(connection.Function)
+                if string.find(funcStr:lower(), "fish") or
+                   string.find(funcStr:lower(), "reel") or
+                   string.find(funcStr:lower(), "bobber") then
+                    connection:Disconnect()
+                    cleaned = cleaned + 1
+                    print("🔌 Disconnected PlayerGui listener")
+                end
+            end
+        end
+    end)
     
     return cleaned
 end
@@ -97,28 +228,51 @@ local function emergencyStop()
     
     local totalStopped = 0
     
-    -- Step 1: Disconnect all connections
+    -- Step 1: Disconnect all connections (aggressive)
     print("🛑 Step 1: Stopping all processes...")
     totalStopped = totalStopped + disconnectAllConnections()
     
-    -- Step 2: Clean global variables
-    print("🧹 Step 2: Cleaning global variables...")
+    -- Step 2: Clean GUI listeners
+    print("🔌 Step 2: Cleaning GUI listeners...")
+    totalStopped = totalStopped + cleanGUIListeners()
+    
+    -- Step 3: Clean global variables
+    print("🧹 Step 3: Cleaning global variables...")
     totalStopped = totalStopped + cleanGlobalVariables()
     
-    -- Step 3: Force cleanup RunService
-    print("🔄 Step 3: Force RunService cleanup...")
+    -- Step 4: Force cleanup RunService
+    print("🔄 Step 4: Force RunService cleanup...")
     totalStopped = totalStopped + forceStopRunService()
     
-    -- Step 4: Close GUIs
-    print("🗑️ Step 4: Closing all GUIs...")
+    -- Step 5: Close GUIs
+    print("🗑️ Step 5: Closing all GUIs...")
     totalStopped = totalStopped + closeAllGUIs()
     
-    -- Step 5: Force garbage collection
-    print("🧽 Step 5: Force garbage collection...")
-    pcall(function()
+    -- Step 6: Multiple garbage collection passes
+    print("🧽 Step 6: Aggressive garbage collection...")
+    for i = 1, 3 do
+        pcall(function()
+            collectgarbage("collect")
+            wait(0.1)
+        end)
+    end
+    print("🧽 Garbage collection completed (3 passes)")
+    
+    -- Step 7: Final verification
+    print("✅ Step 7: Final verification...")
+    local stillRunning = 0
+    if _G.AutoAppraiserHeadless then stillRunning = stillRunning + 1 end
+    if _G.AutoReelHeadless then stillRunning = stillRunning + 1 end
+    
+    if stillRunning > 0 then
+        print("⚠️ WARNING: " .. stillRunning .. " processes may still be running!")
+        print("🔄 Attempting final cleanup...")
+        _G.AutoAppraiserHeadless = nil
+        _G.AutoReelHeadless = nil
         collectgarbage("collect")
-        print("🧽 Garbage collection completed")
-    end)
+    else
+        print("✅ All processes confirmed stopped!")
+    end
     
     print("==============================")
     print("✅ EMERGENCY STOP COMPLETED!")
