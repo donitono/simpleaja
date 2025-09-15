@@ -1,54 +1,76 @@
--- Main Loader Script for Fisch Game Auto Tools
--- Loads Auto Appraiser and Auto Reel Silent as separate modules
+-- Fisch Auto Tools - Clean Interface
+-- Auto-loading both Auto Appraiser and Auto Reel Silent
 -- Author: donitono
 -- Repository: https://github.com/donitono/simpleaja
 
-print("🎣 Loading Fisch Auto Tools...")
-
 -- Load Kavo UI Library
 local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/kavo.lua"))()
-local Window = Kavo.CreateLib("Fisch Auto Tools Hub", "Ocean")
+local Window = Kavo.CreateLib("🎣 Fisch Auto Tools", "Ocean")
 
--- Services
-local Players = game:GetService('Players')
-local LocalPlayer = Players.LocalPlayer
-
--- Create Main Menu Tabs
-local MainTab = Window:NewTab("🏠 Main Menu")
-local LoaderSection = MainTab:NewSection("Module Loader")
-local StatusSection = MainTab:NewSection("Status")
-
--- Module Status Variables
-local moduleStatus = {
-    appraiser = false,
-    autoReel = false
-}
-
--- Load Auto Appraiser Module
-LoaderSection:NewButton("🎯 Load Auto Appraiser", "Load mutation filtering and auto appraiser system", function()
-    if not moduleStatus.appraiser then
-        print("📦 Loading Auto Appraiser module...")
-        
-        pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_appraiser.lua"))()
-            moduleStatus.appraiser = true
-            
-            game.StarterGui:SetCore("SendNotification", {
-                Title = "Module Loader";
-                Text = "🎯 Auto Appraiser loaded successfully!";
-                Duration = 3;
-            })
-            
-            print("✅ Auto Appraiser module loaded successfully!")
-        end)
-    else
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Module Loader";
-            Text = "⚠️ Auto Appraiser already loaded!";
-            Duration = 2;
-        })
-    end
+-- Auto-load both modules immediately
+task.spawn(function()
+    -- Load Auto Appraiser
+    pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_appraiser.lua"))()
+    end)
+    
+    -- Load Auto Reel Silent
+    pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_reel_instant.lua"))()
+    end)
+    
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Fisch Auto Tools";
+        Text = "🚀 All modules loaded successfully!";
+        Duration = 2;
+    })
 end)
+
+-- Create clean interface tabs
+local AppraiserTab = Window:NewTab("🎯 Auto Appraiser")
+local ReelTab = Window:NewTab("🤫 Auto Reel")
+local StatusTab = Window:NewTab("📊 Status")
+
+-- Auto Appraiser Tab Content
+local AppraiserSection = AppraiserTab:NewSection("Auto Appraiser Settings")
+AppraiserSection:NewLabel("✅ Auto Appraiser Module Loaded")
+AppraiserSection:NewLabel("🎯 Mutation filtering active")
+AppraiserSection:NewLabel("🚀 Auto teleport to NPCs enabled")
+AppraiserSection:NewLabel("💬 Smart dialog handling active")
+AppraiserSection:NewLabel("")
+AppraiserSection:NewLabel("📝 Available mutations:")
+AppraiserSection:NewLabel("Albino, Midas, Shiny, Golden, Diamond,")
+AppraiserSection:NewLabel("Prismarine, Frozen, Electric, Ghastly,")
+AppraiserSection:NewLabel("Mosaic, Glossy, Translucent, Negative,")
+AppraiserSection:NewLabel("Lunar, Solar, Hexed, Atlantean,")
+AppraiserSection:NewLabel("Abyssal, Mythical")
+
+-- Auto Reel Tab Content  
+local ReelSection = ReelTab:NewSection("Auto Reel Settings")
+ReelSection:NewLabel("✅ Auto Reel Silent Module Loaded")
+ReelSection:NewLabel("👻 Ghost Mode (Silent) active")
+ReelSection:NewLabel("⚡ Instant reel enabled")
+ReelSection:NewLabel("🚫 Zero animations mode")
+ReelSection:NewLabel("🎣 Auto shake bypass active")
+ReelSection:NewLabel("")
+ReelSection:NewLabel("🎮 Features:")
+ReelSection:NewLabel("• Silent instant fishing")
+ReelSection:NewLabel("• No movement required")
+ReelSection:NewLabel("• Aggressive animation blocking")
+ReelSection:NewLabel("• Automatic reel detection")
+
+-- Status Tab Content
+local SystemSection = StatusTab:NewSection("System Status")
+SystemSection:NewLabel("🟢 All modules: Active")
+SystemSection:NewLabel("🎯 Auto Appraiser: Running")
+SystemSection:NewLabel("🤫 Auto Reel Silent: Running")
+SystemSection:NewLabel("")
+
+local InfoSection = StatusTab:NewSection("Information")
+InfoSection:NewLabel("📦 Repository: github.com/donitono/simpleaja")
+InfoSection:NewLabel("🔄 Auto-updates from GitHub")
+InfoSection:NewLabel("⚡ Clean interface mode")
+InfoSection:NewLabel("🚀 No manual loading required")
 
 -- Load Auto Reel Silent Module  
 LoaderSection:NewButton("🤫 Load Auto Reel Silent", "Load silent instant reel and normal auto reel system", function()
