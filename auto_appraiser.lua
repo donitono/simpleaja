@@ -63,6 +63,10 @@ local AutoAppraise = {
     CurrentAttempts = 0
 }
 
+-- Register in global cleanup system
+_G.AutoAppraise = AutoAppraise
+_G.FischAutoToolsCleanup = _G.FischAutoToolsCleanup or {connections = {}, flags = {}, modules = {}}
+
 -- Appraisal Mutation Types (based on Fischipedia wiki - Appraisal Chances table)
 local Appraisers = {
     "Any",
@@ -578,11 +582,14 @@ spawn(function()
 end)
 
 -- Character respawn handling
-LocalPlayer.CharacterAdded:Connect(function(newChar)
+local characterConnection = LocalPlayer.CharacterAdded:Connect(function(newChar)
     Character = newChar
     Humanoid = Character:WaitForChild("Humanoid")
     HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
 end)
+
+-- Register connection for cleanup
+_G.FischAutoToolsCleanup.connections.characterAppraiser = characterConnection
 
 game.StarterGui:SetCore("SendNotification", {
     Title = "Auto Appraiser";

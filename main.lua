@@ -1,539 +1,539 @@
--- Main Script for Fisch Game Auto Tools
--- Combines Auto Appraiser and Auto Reel Silent in one interface
+-- Main Loader for Fisch Auto Tools
+-- Loads Auto Appraiser and Auto Reel Silent as separate modules
 -- Author: donitono
 -- Repository: https://github.com/donitono/simpleaja
 
--- Load Kavo UI Library
-local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/kavo.lua"))()
-local Window = Kavo.CreateLib("Fisch Auto Tools", "Ocean")
-
--- Services
-local Players = game:GetService('Players')
-local ReplicatedStorage = game:GetService('ReplicatedStorage')
-local RunService = game:GetService('RunService')
-local UserInputService = game:GetService('UserInputService')
-local VirtualInputManager = game:GetService('VirtualInputManager')
-local TweenService = game:GetService('TweenService')
-
--- Variables
-local LocalPlayer = Players.LocalPlayer
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-
--- Global Flags
-local flags = {}
-
--- ======================================================================================
--- AUTO APPRAISER SECTION
--- ======================================================================================
-
--- Auto Appraiser Settings
-local AutoAppraise = {
-    Enabled = false,
-    SelectedAppraiser = "Any",
-    AppraiseDelay = 1,
-    StopWhenFound = true,
-    MaxAttempts = 100,
-    CurrentAttempts = 0
-}
-
--- Appraiser Mutation Types (based on Fischipedia wiki)
-local Appraisers = {
-    "Any",
-    "Albino", "Darkened", "Negative", "Glossy", "Translucent",
-    "Lunar", "Electric", "Silver", "Hexed", "Frozen", 
-    "Mosaic", "Scorched", "Amber", "Abyssal", "Fossilized",
-    "Midas", "Greedy", "Spirit", "Mythical"
-}
-
--- Auto Appraiser Functions
-local function findNearestAppraiser()
-    local nearestAppraiser = nil
-    local shortestDistance = math.huge
-    
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj.Name:lower():find("appraiser") and obj:FindFirstChild("HumanoidRootPart") then
-            local distance = (HumanoidRootPart.Position - obj.HumanoidRootPart.Position).Magnitude
-            if distance < shortestDistance and distance <= 50 then
-                shortestDistance = distance
-                nearestAppraiser = obj
-            end
-        end
-    end
-    
-    return nearestAppraiser
-end
-
-local function teleportToAppraiser(appraiser)
-    if appraiser and appraiser:FindFirstChild("HumanoidRootPart") then
-        HumanoidRootPart.CFrame = appraiser.HumanoidRootPart.CFrame + Vector3.new(0, 0, -5)
-    end
-end
-
-local function interactWithAppraiser(appraiser)
-    -- Multiple interaction methods
-    local remotes = ReplicatedStorage:GetDescendants()
-    for _, remote in pairs(remotes) do
-        if remote:IsA("RemoteEvent") then
-            local remoteName = remote.Name:lower()
-            if remoteName:find("apprai") or remoteName:find("npc") or remoteName:find("dialog") then
-                pcall(function()
-                    remote:FireServer("StartConversation", appraiser)
-                    wait(0.2)
-                    remote:FireServer("SelectOption", "Appraise")
-                    wait(0.2)
-                    remote:FireServer("ConfirmAppraisal")
-                end)
-                break
-            end
-        end
-    end
-    
-    -- Try proximity prompt
-    local proximityPrompt = appraiser:FindFirstChildOfClass("ProximityPrompt", true)
-    if proximityPrompt then
-        fireproximityprompt(proximityPrompt)
-    end
-    
-    -- Try click detector
-    local clickDetector = appraiser:FindFirstChildOfClass("ClickDetector", true)
-    if clickDetector then
-        fireclickdetector(clickDetector)
-    end
-end
-
-local function checkAppraisalResult()
-    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-    if playerGui then
-        local resultGui = playerGui:FindFirstChild("AppraisalGUI") or 
-                         playerGui:FindFirstChild("ItemAppraisalGUI") or
-                         playerGui:FindFirstChild("AppraisalResult")
-        
-        if resultGui then
-            local textLabels = resultGui:GetDescendants()
-            for _, label in pairs(textLabels) do
-                if label:IsA("TextLabel") or label:IsA("TextButton") then
-                    local text = label.Text
-                    if AutoAppraise.SelectedAppraiser ~= "Any" then
-                        for _, mutationType in pairs(Appraisers) do
-                            if text:find(mutationType) and mutationType == AutoAppraise.SelectedAppraiser then
-                                return true
-                            end
-                        end
-                    else
-                        for _, mutationType in pairs(Appraisers) do
-                            if text:find(mutationType) then
-                                return true
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-    return false
-end
-
-local function autoAppraise()
-    if not AutoAppraise.Enabled then return end
-    
-    AutoAppraise.CurrentAttempts = AutoAppraise.CurrentAttempts + 1
-    
-    if AutoAppraise.CurrentAttempts >= AutoAppraise.MaxAttempts then
-        AutoAppraise.Enabled = false
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Auto Appraiser";
-            Text = "Max attempts reached!";
-            Duration = 3;
-        })
-        return
-    end
-    
-    local appraiser = findNearestAppraiser()
-    if not appraiser then
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Auto Appraiser";
-            Text = "No appraiser found nearby!";
-            Duration = 3;
-        })
-        wait(2)
-        return
-    end
-    
-    teleportToAppraiser(appraiser)
-    wait(1)
-    interactWithAppraiser(appraiser)
-    wait(3)
-    
-    if AutoAppraise.StopWhenFound and checkAppraisalResult() then
-        AutoAppraise.Enabled = false
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Auto Appraiser";
-            Text = "Target mutation found!";
-            Duration = 5;
-        })
-        return
-    end
-    
-    wait(AutoAppraise.AppraiseDelay)
-end
-
--- ======================================================================================
--- AUTO REEL SILENT SECTION
--- ======================================================================================
-
--- Auto Reel Settings
-flags['autoreel'] = false
-flags['autoreeldelay'] = 0.1
-flags['superinstantsilent'] = false
-flags['instantbobber'] = false
-
--- Super Instant Variables
-local superInstantReelActive = false
-local lureMonitorConnection = nil
-
--- Find Rod Function
-local function FindRod()
-    local character = LocalPlayer.Character
-    if character then
-        for _, tool in pairs(character:GetChildren()) do
-            if tool:IsA("Tool") and tool.Name:lower():find("rod") then
-                return tool
-            end
-        end
-    end
-    return nil
-end
-
--- Silent Reel System
-local function setupSuperInstantSilentReel()
-    if not superInstantReelActive then
-        superInstantReelActive = true
-        
-        lureMonitorConnection = RunService.Heartbeat:Connect(function()
-            if flags['superinstantsilent'] then
-                pcall(function()
-                    local rod = FindRod()
-                    if rod and rod.values then
-                        local lureValue = rod.values.lure and rod.values.lure.Value or 0
-                        local biteValue = rod.values.bite and rod.values.bite.Value or false
-                        
-                        -- Aggressive animation blocking
-                        local character = LocalPlayer.Character
-                        if character and character:FindFirstChild("Humanoid") then
-                            local humanoid = character.Humanoid
-                            
-                            for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
-                                local animName = track.Name:lower()
-                                local animId = tostring(track.Animation.AnimationId):lower()
-                                
-                                local fishingPatterns = {
-                                    "fish", "reel", "cast", "rod", "catch", "lift", "pull", 
-                                    "bobber", "yank", "swing", "throw", "hook", "bait"
-                                }
-                                
-                                for _, pattern in pairs(fishingPatterns) do
-                                    if animName:find(pattern) or animId:find(pattern) then
-                                        track:Stop()
-                                        track:AdjustSpeed(0)
-                                        break
-                                    end
-                                end
-                            end
-                            
-                            humanoid.PlatformStand = false
-                            humanoid.Sit = false
-                        end
-                        
-                        -- Ultra-instant catch
-                        if lureValue >= 90 or biteValue == true then
-                            for i = 1, 10 do
-                                ReplicatedStorage.events.reelfinished:FireServer(100, true)
-                                task.wait(0.001)
-                            end
-                            
-                            local reelGui = LocalPlayer.PlayerGui:FindFirstChild("reel")
-                            if reelGui then
-                                reelGui:Destroy()
-                            end
-                        end
-                    end
-                end)
-            end
-        end)
-        
-        -- GUI intercept
-        LocalPlayer.PlayerGui.ChildAdded:Connect(function(gui)
-            if flags['superinstantsilent'] then
-                if gui.Name == "reel" or gui.Name == "shakeui" then
-                    pcall(function()
-                        gui:Destroy()
-                        if gui.Name == "reel" then
-                            ReplicatedStorage.events.reelfinished:FireServer(100, true)
-                        elseif gui.Name == "shakeui" then
-                            ReplicatedStorage.events.shakecomplete:FireServer()
-                        end
-                    end)
-                end
-            end
-        end)
-    end
-end
-
--- Normal Auto Reel Function
-local function normalAutoReel()
-    task.spawn(function()
-        while flags['autoreel'] do
-            task.wait(flags['autoreeldelay'])
-            
-            pcall(function()
-                local reelGui = LocalPlayer.PlayerGui:FindFirstChild("reel")
-                if reelGui and reelGui.Enabled then
-                    local reelFrame = reelGui:FindFirstChild("bar")
-                    if reelFrame then
-                        local playerBar = reelFrame:FindFirstChild("playerbar")
-                        local fishBar = reelFrame:FindFirstChild("fish")
-                        
-                        if playerBar and fishBar then
-                            local playerPos = playerBar.Position.X.Scale
-                            local fishPos = fishBar.Position.X.Scale
-                            
-                            if math.abs(playerPos - fishPos) > 0.1 then
-                                if playerPos < fishPos then
-                                    VirtualInputManager:SendKeyEvent(true, "D", false, game)
-                                else
-                                    VirtualInputManager:SendKeyEvent(true, "A", false, game)
-                                end
-                            end
-                        end
-                    end
-                end
-            end)
-        end
-    end)
-end
-
--- Setup functions
-setupSuperInstantSilentReel()
-
--- Character respawn handling
-LocalPlayer.CharacterAdded:Connect(function(newChar)
-    Character = newChar
-    Humanoid = Character:WaitForChild("Humanoid")
-    HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-end)
-
--- ======================================================================================
--- GUI SETUP
--- ======================================================================================
-
--- Tab 1: Auto Appraiser
-local AppraiserTab = Window:NewTab("🎯 Auto Appraiser")
-local AppraisalSection = AppraiserTab:NewSection("Appraisal Settings")
-local AppraisalStatusSection = AppraiserTab:NewSection("Status & Control")
-
--- Appraiser Controls
-AppraisalSection:NewDropdown("Target Mutation", "Select which mutation/variant to target", Appraisers, function(selected)
-    AutoAppraise.SelectedAppraiser = selected
-    game.StarterGui:SetCore("SendNotification", {
-        Title = "Auto Appraiser";
-        Text = "Target set to: " .. selected;
-        Duration = 2;
-    })
-end)
-
-AppraisalSection:NewToggle("Auto Appraiser", "Toggle automatic appraising", function(state)
-    AutoAppraise.Enabled = state
-    AutoAppraise.CurrentAttempts = 0
-    
-    if state then
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Auto Appraiser";
-            Text = "🎯 Auto Appraiser Enabled!";
-            Duration = 2;
-        })
-        
-        spawn(function()
-            while AutoAppraise.Enabled do
-                autoAppraise()
-                wait(AutoAppraise.AppraiseDelay)
-            end
-        end)
-    else
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Auto Appraiser";
-            Text = "Auto Appraiser Disabled!";
-            Duration = 2;
-        })
-    end
-end)
-
-AppraisalSection:NewSlider("Appraise Delay", "Delay between appraisals (seconds)", 10, 0.1, function(value)
-    AutoAppraise.AppraiseDelay = value
-end)
-
-AppraisalSection:NewSlider("Max Attempts", "Maximum attempts before stopping", 1000, 10, function(value)
-    AutoAppraise.MaxAttempts = value
-end)
-
-AppraisalSection:NewToggle("Stop When Found", "Stop when target mutation is found", function(state)
-    AutoAppraise.StopWhenFound = state
-end)
-
--- Appraiser Status Controls
-AppraisalStatusSection:NewButton("Find Nearest Appraiser", "Teleport to nearest appraiser", function()
-    local appraiser = findNearestAppraiser()
-    if appraiser then
-        teleportToAppraiser(appraiser)
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Auto Appraiser";
-            Text = "Teleported to appraiser!";
-            Duration = 2;
-        })
-    else
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Auto Appraiser";
-            Text = "No appraiser found!";
-            Duration = 2;
-        })
-    end
-end)
-
-AppraisalStatusSection:NewButton("Reset Attempts", "Reset attempts counter", function()
-    AutoAppraise.CurrentAttempts = 0
-    game.StarterGui:SetCore("SendNotification", {
-        Title = "Auto Appraiser";
-        Text = "Attempts reset!";
-        Duration = 2;
-    })
-end)
-
--- Tab 2: Auto Reel Silent
-local ReelTab = Window:NewTab("🎣 Auto Reel Silent")
-local ReelSection = ReelTab:NewSection("Reel Settings")
-local ReelAdvancedSection = ReelTab:NewSection("Advanced Settings")
-local ReelStatusSection = ReelTab:NewSection("Status")
-
--- Reel Controls
-ReelSection:NewToggle("Normal Auto Reel", "Standard automatic reeling with animations", function(state)
-    flags['autoreel'] = state
-    if state then
-        flags['superinstantsilent'] = false
-        normalAutoReel()
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Auto Reel";
-            Text = "🎣 Normal Auto Reel Enabled!";
-            Duration = 2;
-        })
-    else
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Auto Reel";
-            Text = "Auto Reel Disabled!";
-            Duration = 2;
-        })
-    end
-end)
-
-ReelSection:NewToggle("Silent Instant Reel", "🤫 ZERO MOVEMENT + INSTANT CATCH", function(state)
-    flags['superinstantsilent'] = state
-    if state then
-        flags['autoreel'] = false
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Auto Reel";
-            Text = "🤫 GHOST MODE Activated!";
-            Duration = 3;
-        })
-    else
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Auto Reel";
-            Text = "Silent Mode Disabled";
-            Duration = 2;
-        })
-    end
-end)
-
-ReelAdvancedSection:NewSlider("Auto Reel Delay", "Delay between reel actions", 2, 0.01, function(value)
-    flags['autoreeldelay'] = value
-end)
-
-ReelAdvancedSection:NewToggle("Instant Bobber", "Makes bobber appear instantly", function(state)
-    flags['instantbobber'] = state
-    if state then
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Auto Reel";
-            Text = "Instant Bobber Enabled!";
-            Duration = 2;
-        })
-    end
-end)
-
--- Tab 3: Information & Status
-local InfoTab = Window:NewTab("ℹ️ Information")
-local StatusInfoSection = InfoTab:NewSection("Live Status")
-local UsageInfoSection = InfoTab:NewSection("Usage Guide")
-
--- Live Status Labels
-local appraiserStatusLabel = StatusInfoSection:NewLabel("Appraiser Status: Ready")
-local appraiserAttemptsLabel = StatusInfoSection:NewLabel("Attempts: 0/100")
-local appraiserTargetLabel = StatusInfoSection:NewLabel("Target: Any")
-
-local reelNormalLabel = StatusInfoSection:NewLabel("Normal Reel: Disabled")
-local reelSilentLabel = StatusInfoSection:NewLabel("Silent Reel: Disabled")
-
--- Usage Information
-UsageInfoSection:NewLabel("🎯 AUTO APPRAISER:")
-UsageInfoSection:NewLabel("• Select target mutation from dropdown")
-UsageInfoSection:NewLabel("• Enable Auto Appraiser toggle")
-UsageInfoSection:NewLabel("• Script will find & teleport to appraiser")
-UsageInfoSection:NewLabel("• Automatically interact until target found")
-
-UsageInfoSection:NewLabel("")
-UsageInfoSection:NewLabel("🤫 SILENT REEL MODE:")
-UsageInfoSection:NewLabel("• Zero movement instant fishing")
-UsageInfoSection:NewLabel("• Fish appear in inventory instantly")
-UsageInfoSection:NewLabel("• No animations or character movement")
-UsageInfoSection:NewLabel("• Very powerful but may be detectable")
-
-UsageInfoSection:NewLabel("")
-UsageInfoSection:NewLabel("⚠️ SAFETY TIPS:")
-UsageInfoSection:NewLabel("• Use in private servers when possible")
-UsageInfoSection:NewLabel("• Don't use with other players nearby")
-UsageInfoSection:NewLabel("• Start with lower attempt limits")
-
--- Status Update Loop
-task.spawn(function()
-    while true do
-        wait(1)
-        
-        -- Update Appraiser Status
-        local appraiserStatus = AutoAppraise.Enabled and "Running" or "Stopped"
-        appraiserStatusLabel:UpdateLabel("Appraiser Status: " .. appraiserStatus)
-        appraiserAttemptsLabel:UpdateLabel("Attempts: " .. AutoAppraise.CurrentAttempts .. "/" .. AutoAppraise.MaxAttempts)
-        appraiserTargetLabel:UpdateLabel("Target: " .. AutoAppraise.SelectedAppraiser)
-        
-        -- Update Reel Status
-        local normalStatus = flags['autoreel'] and "Enabled" or "Disabled"
-        local silentStatus = flags['superinstantsilent'] and "Enabled" or "Disabled"
-        reelNormalLabel:UpdateLabel("Normal Reel: " .. normalStatus)
-        reelSilentLabel:UpdateLabel("Silent Reel: " .. silentStatus)
-    end
-end)
-
--- Welcome Message
+-- Loading notification
 game.StarterGui:SetCore("SendNotification", {
     Title = "Fisch Auto Tools";
-    Text = "All systems loaded successfully! 🎣🎯";
+    Text = "Loading modules... Please wait";
     Duration = 3;
 })
 
-print("🎣 Fisch Auto Tools Main Script Loaded!")
-print("Features Available:")
-print("• 🎯 Auto Appraiser with mutation filtering")
-print("• 🤫 Silent Instant Reel (Ghost Mode)")
-print("• 🎣 Normal Auto Reel with customizable settings")
-print("• ℹ️ Real-time status monitoring")
-print("• 🛡️ Safety features and error handling")
+print("🎣 Loading Fisch Auto Tools...")
+
+-- Load Kavo UI Library first
+print("📚 Loading Kavo UI Library...")
+local success1, kavo = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/kavo.lua"))()
+end)
+
+if not success1 then
+    warn("❌ Failed to load Kavo UI Library:", kavo)
+    return
+end
+
+-- Create main window
+local Window = kavo.CreateLib("🎣 Fisch Auto Tools", "Ocean")
+
+-- Create tabs for each module
+local LoaderTab = Window:NewTab("📦 Module Loader")
+local LoaderSection = LoaderTab:NewSection("Available Modules")
+local StatusSection = LoaderTab:NewSection("Module Status")
+local ExitSection = LoaderTab:NewSection("🚨 Safety Exit")
+
+-- Module status tracking
+local moduleStatus = {
+    autoAppraiser = false,
+    autoReelSilent = false,
+    isExiting = false  -- NEW: Exit status flag
+}
+
+-- Global cleanup functions storage
+_G.FischAutoToolsCleanup = _G.FischAutoToolsCleanup or {
+    connections = {},
+    flags = {},
+    modules = {}
+}
+
+-- Load Auto Appraiser Module
+LoaderSection:NewButton("🎯 Load Auto Appraiser", "Load mutation filtering and auto appraisal module", function()
+    if moduleStatus.autoAppraiser then
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Module Loader";
+            Text = "⚠️ Auto Appraiser already loaded!";
+            Duration = 2;
+        })
+        return
+    end
+    
+    print("🎯 Loading Auto Appraiser module...")
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Module Loader";
+        Text = "Loading Auto Appraiser...";
+        Duration = 2;
+    })
+    
+    local success, result = pcall(function()
+        return loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_appraiser.lua"))()
+    end)
+    
+    if success then
+        moduleStatus.autoAppraiser = true
+        -- Register module for cleanup
+        _G.FischAutoToolsCleanup.modules.autoAppraiser = true
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Auto Appraiser";
+            Text = "✅ Module loaded successfully!";
+            Duration = 3;
+        })
+        print("✅ Auto Appraiser module loaded!")
+    else
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Module Loader";
+            Text = "❌ Failed to load Auto Appraiser";
+            Duration = 3;
+        })
+        warn("❌ Failed to load Auto Appraiser:", result)
+    end
+end)
+
+-- Load Auto Reel Silent Module
+LoaderSection:NewButton("🤫 Load Auto Reel Silent", "Load silent instant reel and normal auto reel module", function()
+    if moduleStatus.autoReelSilent then
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Module Loader";
+            Text = "⚠️ Auto Reel Silent already loaded!";
+            Duration = 2;
+        })
+        return
+    end
+    
+    print("🤫 Loading Auto Reel Silent module...")
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Module Loader";
+        Text = "Loading Auto Reel Silent...";
+        Duration = 2;
+    })
+    
+    local success, result = pcall(function()
+        return loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_reel_instant.lua"))()
+    end)
+    
+    if success then
+        moduleStatus.autoReelSilent = true
+        -- Register module for cleanup
+        _G.FischAutoToolsCleanup.modules.autoReelSilent = true
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Auto Reel Silent";
+            Text = "✅ Module loaded successfully!";
+            Duration = 3;
+        })
+        print("✅ Auto Reel Silent module loaded!")
+    else
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Module Loader";
+            Text = "❌ Failed to load Auto Reel Silent";
+            Duration = 3;
+        })
+        warn("❌ Failed to load Auto Reel Silent:", result)
+    end
+end)
+
+-- Load All Modules at Once
+LoaderSection:NewButton("🚀 Load All Modules", "Load both Auto Appraiser and Auto Reel Silent", function()
+    print("🚀 Loading all modules...")
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Module Loader";
+        Text = "Loading all modules...";
+        Duration = 2;
+    })
+    
+    -- Load Auto Appraiser if not loaded
+    if not moduleStatus.autoAppraiser then
+        local success1, result1 = pcall(function()
+            return loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_appraiser.lua"))()
+        end)
+        
+        if success1 then
+            moduleStatus.autoAppraiser = true
+            _G.FischAutoToolsCleanup.modules.autoAppraiser = true
+            print("✅ Auto Appraiser loaded!")
+        else
+            warn("❌ Failed to load Auto Appraiser:", result1)
+        end
+    end
+    
+    -- Load Auto Reel Silent if not loaded
+    if not moduleStatus.autoReelSilent then
+        wait(0.5) -- Small delay between loads
+        local success2, result2 = pcall(function()
+            return loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_reel_instant.lua"))()
+        end)
+        
+        if success2 then
+            moduleStatus.autoReelSilent = true
+            _G.FischAutoToolsCleanup.modules.autoReelSilent = true
+            print("✅ Auto Reel Silent loaded!")
+        else
+            warn("❌ Failed to load Auto Reel Silent:", result2)
+        end
+    end
+    
+    -- Final status
+    local loadedCount = 0
+    if moduleStatus.autoAppraiser then loadedCount = loadedCount + 1 end
+    if moduleStatus.autoReelSilent then loadedCount = loadedCount + 1 end
+    
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Module Loader";
+        Text = string.format("✅ %d/2 modules loaded successfully!", loadedCount);
+        Duration = 3;
+    })
+end)
+
+-- ======================================================================================
+-- SAFE EXIT SYSTEM
+-- ======================================================================================
+
+-- Global cleanup function to disable all modules safely
+local function performSafeExit()
+    if moduleStatus.isExiting then
+        return -- Prevent multiple exit calls
+    end
+    
+    moduleStatus.isExiting = true
+    
+    print("🚨 [SAFE EXIT] Initiating safe shutdown...")
+    
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Safe Exit";
+        Text = "🚨 Shutting down all modules safely...";
+        Duration = 3;
+    })
+    
+    -- Step 1: Disable all module flags via global variables
+    pcall(function()
+        if _G.AutoAppraise then
+            _G.AutoAppraise.Enabled = false
+        end
+        
+        if _G.flags then
+            _G.flags['autoreel'] = false
+            _G.flags['superinstantsilent'] = false
+            _G.flags['instantbobber'] = false
+        end
+        
+        -- Disable any flags that might exist
+        if flags then
+            flags['autoreel'] = false
+            flags['superinstantsilent'] = false
+            flags['instantbobber'] = false
+        end
+        
+        print("✅ [SAFE EXIT] All module flags disabled")
+    end)
+    
+    -- Step 2: Disconnect all connections
+    pcall(function()
+        if _G.FischAutoToolsCleanup and _G.FischAutoToolsCleanup.connections then
+            for name, connection in pairs(_G.FischAutoToolsCleanup.connections) do
+                if connection and typeof(connection) == "RBXScriptConnection" then
+                    connection:Disconnect()
+                    print("🔌 [SAFE EXIT] Disconnected:", name)
+                end
+            end
+            _G.FischAutoToolsCleanup.connections = {}
+        end
+        
+        print("✅ [SAFE EXIT] All connections disconnected")
+    end)
+    
+    -- Step 3: Stop all running loops/threads
+    pcall(function()
+        -- Force disable any running auto appraiser loops
+        if _G.AutoAppraise then
+            _G.AutoAppraise.Enabled = false
+            _G.AutoAppraise.CurrentAttempts = 999999 -- Force stop
+        end
+        
+        -- Force stop any running reel monitoring
+        if _G.lureMonitorConnection then
+            _G.lureMonitorConnection:Disconnect()
+            _G.lureMonitorConnection = nil
+        end
+        
+        if _G.superInstantReelActive then
+            _G.superInstantReelActive = false
+        end
+        
+        print("✅ [SAFE EXIT] All loops and threads stopped")
+    end)
+    
+    -- Step 4: Clear any GUI elements that might be active
+    pcall(function()
+        local playerGui = game.Players.LocalPlayer:FindFirstChild("PlayerGui")
+        if playerGui then
+            -- Remove any reel GUIs that might be stuck
+            local reelGui = playerGui:FindFirstChild("reel")
+            if reelGui then
+                reelGui:Destroy()
+            end
+            
+            -- Remove any shake GUIs
+            local shakeGui = playerGui:FindFirstChild("shakeui")
+            if shakeGui then
+                shakeGui:Destroy()
+            end
+        end
+        
+        print("✅ [SAFE EXIT] GUI elements cleared")
+    end)
+    
+    -- Step 5: Reset character animations
+    pcall(function()
+        local character = game.Players.LocalPlayer.Character
+        if character and character:FindFirstChild("Humanoid") then
+            local humanoid = character.Humanoid
+            
+            -- Stop all playing animations
+            for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
+                track:Stop()
+            end
+            
+            -- Reset humanoid state
+            humanoid.PlatformStand = false
+            humanoid.Sit = false
+        end
+        
+        print("✅ [SAFE EXIT] Character animations reset")
+    end)
+    
+    -- Step 6: Update module status
+    moduleStatus.autoAppraiser = false
+    moduleStatus.autoReelSilent = false
+    
+    -- Step 7: Clear global cleanup registry
+    pcall(function()
+        _G.FischAutoToolsCleanup = {
+            connections = {},
+            flags = {},
+            modules = {}
+        }
+    end)
+    
+    -- Final notification
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Safe Exit";
+        Text = "✅ All modules safely disabled! You can close the GUI now.";
+        Duration = 5;
+    })
+    
+    print("✅ [SAFE EXIT] Complete! All systems safely shut down.")
+    print("🔒 Safe to close executor or leave game.")
+    
+    -- Wait a bit then reset exit flag
+    wait(2)
+    moduleStatus.isExiting = false
+end
+
+-- Emergency exit function (more aggressive)
+local function performEmergencyExit()
+    print("🚨 [EMERGENCY EXIT] Performing emergency shutdown...")
+    
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Emergency Exit";
+        Text = "🚨 EMERGENCY SHUTDOWN in progress...";
+        Duration = 4;
+    })
+    
+    -- Aggressively disable everything
+    pcall(function()
+        -- Disable all global variables
+        for key, value in pairs(_G) do
+            if type(key) == "string" then
+                if key:lower():find("auto") or key:lower():find("reel") or key:lower():find("apprai") then
+                    if type(value) == "table" then
+                        for subkey, subvalue in pairs(value) do
+                            if type(subkey) == "string" and subkey:lower():find("enable") then
+                                value[subkey] = false
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+    
+    -- Disconnect ALL connections in the game
+    pcall(function()
+        for _, connection in pairs(getconnections(game.Players.LocalPlayer.PlayerGui.ChildAdded)) do
+            connection:Disconnect()
+        end
+        
+        for _, connection in pairs(getconnections(game:GetService("RunService").Heartbeat)) do
+            if connection.Function and tostring(connection.Function):find("auto") then
+                connection:Disconnect()
+            end
+        end
+    end)
+    
+    -- Reset character completely
+    pcall(function()
+        local character = game.Players.LocalPlayer.Character
+        if character then
+            character:FindFirstChild("Humanoid"):ChangeState(Enum.HumanoidStateType.Physics)
+            wait(0.1)
+            character:FindFirstChild("Humanoid"):ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
+        end
+    end)
+    
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Emergency Exit";
+        Text = "🔒 EMERGENCY SHUTDOWN COMPLETE!";
+        Duration = 5;
+    })
+    
+    print("🔒 [EMERGENCY EXIT] Complete! All systems forcefully shut down.")
+end
+
+-- Module Information Section
+local InfoSection = LoaderTab:NewSection("Module Information")
+
+InfoSection:NewLabel("🎯 Auto Appraiser:")
+InfoSection:NewLabel("• Mutation filtering (Albino, Midas, etc.)")
+InfoSection:NewLabel("• Auto teleport to appraiser NPC")
+InfoSection:NewLabel("• Automatic interaction & confirmation")
+InfoSection:NewLabel("• Stop when target mutation found")
+
+InfoSection:NewLabel("")
+InfoSection:NewLabel("🤫 Auto Reel Silent:")
+InfoSection:NewLabel("• Normal auto reel with animations")
+InfoSection:NewLabel("• Silent instant reel (ghost mode)")
+InfoSection:NewLabel("• Zero movement fishing")
+InfoSection:NewLabel("• Instant catch without delays")
+
+InfoSection:NewLabel("")
+InfoSection:NewLabel("📦 Benefits of separate modules:")
+InfoSection:NewLabel("• Load only what you need")
+InfoSection:NewLabel("• Easy updates without re-downloading")
+InfoSection:NewLabel("• Better performance & memory usage")
+InfoSection:NewLabel("• Independent module management")
+
+-- Status Labels (Updated real-time)
+local appraiserStatusLabel = StatusSection:NewLabel("Auto Appraiser: Not Loaded")
+local reelStatusLabel = StatusSection:NewLabel("Auto Reel Silent: Not Loaded")
+
+-- URLs for manual loading
+local UrlSection = LoaderTab:NewSection("Manual URLs")
+UrlSection:NewLabel("🔗 Manual Loading URLs:")
+UrlSection:NewLabel("Auto Appraiser:")
+UrlSection:NewLabel("loadstring(game:HttpGet(")
+UrlSection:NewLabel("'https://raw.githubusercontent.com/donitono/")
+UrlSection:NewLabel("simpleaja/main/auto_appraiser.lua'))()")
+UrlSection:NewLabel("")
+UrlSection:NewLabel("Auto Reel Silent:")
+UrlSection:NewLabel("loadstring(game:HttpGet(")
+UrlSection:NewLabel("'https://raw.githubusercontent.com/donitono/")
+UrlSection:NewLabel("simpleaja/main/auto_reel_instant.lua'))()")
+
+-- ======================================================================================
+-- SAFE EXIT BUTTONS
+-- ======================================================================================
+
+-- Safe Exit Button
+ExitSection:NewButton("🔒 Safe Exit", "Safely disable all modules and scripts", function()
+    -- Confirmation dialog simulation
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Safe Exit";
+        Text = "⚠️ This will disable ALL modules. Click again to confirm.";
+        Duration = 3;
+    })
+    
+    -- Wait for confirmation (second click within 5 seconds)
+    local confirmTime = tick()
+    local confirmed = false
+    
+    -- Create temporary confirmation button
+    local confirmButton = ExitSection:NewButton("✅ CONFIRM Safe Exit", "Click to confirm safe exit", function()
+        if tick() - confirmTime <= 5 then -- 5 second window
+            confirmed = true
+            performSafeExit()
+        else
+            game.StarterGui:SetCore("SendNotification", {
+                Title = "Safe Exit";
+                Text = "❌ Confirmation timeout. Try again.";
+                Duration = 2;
+            })
+        end
+    end)
+    
+    -- Remove confirmation button after 5 seconds
+    wait(5)
+    if not confirmed then
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Safe Exit";
+            Text = "❌ Safe exit cancelled (timeout)";
+            Duration = 2;
+        })
+    end
+end)
+
+-- Emergency Exit Button
+ExitSection:NewButton("🚨 Emergency Exit", "FORCE shutdown all scripts (use if safe exit fails)", function()
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Emergency Exit";
+        Text = "⚠️ EMERGENCY MODE! Click EMERGENCY CONFIRM to proceed.";
+        Duration = 4;
+    })
+    
+    -- Emergency confirmation
+    local emergencyConfirmButton = ExitSection:NewButton("💀 EMERGENCY CONFIRM", "FORCE shutdown everything NOW", function()
+        performEmergencyExit()
+    end)
+    
+    wait(3)
+    -- Auto-remove emergency button after 3 seconds to prevent accidents
+end)
+
+-- Exit Status Display
+local exitStatusLabel = ExitSection:NewLabel("Exit Status: Ready")
+
+-- Module Status Display
+ExitSection:NewLabel("⚠️ BEFORE EXITING:")
+ExitSection:NewLabel("• Safe Exit: Gracefully stops all modules")
+ExitSection:NewLabel("• Emergency Exit: Force stops everything")
+ExitSection:NewLabel("• Always use Safe Exit first")
+ExitSection:NewLabel("• Emergency only if Safe Exit fails")
+
+-- Status update loop
+task.spawn(function()
+    while true do
+        wait(2)
+        
+        local appraiserStatus = moduleStatus.autoAppraiser and "✅ Loaded" or "❌ Not Loaded"
+        local reelStatus = moduleStatus.autoReelSilent and "✅ Loaded" or "❌ Not Loaded"
+        
+        appraiserStatusLabel:UpdateLabel("Auto Appraiser: " .. appraiserStatus)
+        reelStatusLabel:UpdateLabel("Auto Reel Silent: " .. reelStatus)
+        
+        -- Update exit status
+        local exitStatus = "Ready"
+        if moduleStatus.isExiting then
+            exitStatus = "🚨 Exiting..."
+        elseif moduleStatus.autoAppraiser or moduleStatus.autoReelSilent then
+            exitStatus = "⚠️ Modules Active"
+        end
+        exitStatusLabel:UpdateLabel("Exit Status: " .. exitStatus)
+    end
+end)
+
+-- Success notification
+game.StarterGui:SetCore("SendNotification", {
+    Title = "Fisch Auto Tools";
+    Text = "✅ Main loader ready! Load modules as needed";
+    Duration = 3;
+})
+
+print("✅ Fisch Auto Tools Main Loader ready!")
 print("")
+print("📦 Available Modules:")
+print("• 🎯 Auto Appraiser - Mutation filtering & auto appraisal")
+print("• 🤫 Auto Reel Silent - Ghost mode fishing & normal auto reel")
+print("")
+print("🚀 Quick Load Command:")
+print("loadstring(game:HttpGet('https://raw.githubusercontent.com/donitono/simpleaja/main/main.lua'))()")
+print("")
+print("🔧 Individual Module Updates:")
+print("Each module can be updated independently without affecting others")
 print("Repository: https://github.com/donitono/simpleaja")
-print("Load with: loadstring(game:HttpGet('https://raw.githubusercontent.com/donitono/simpleaja/main/main.lua'))()")
