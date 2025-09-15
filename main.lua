@@ -30,6 +30,7 @@ end)
 local AppraiserTab = Window:NewTab("🎯 Auto Appraiser")
 local ReelTab = Window:NewTab("🤫 Auto Reel")
 local StatusTab = Window:NewTab("📊 Status")
+local SettingsTab = Window:NewTab("⚙️ Settings")
 
 -- Auto Appraiser Tab Content
 local AppraiserSection = AppraiserTab:NewSection("Auto Appraiser Controls")
@@ -165,185 +166,187 @@ InfoSection:NewLabel("🔄 Auto-updates from GitHub")
 InfoSection:NewLabel("⚡ Clean single UI interface")
 InfoSection:NewLabel("🚀 Headless background modules")
 
--- Load Auto Reel Silent Module  
-LoaderSection:NewButton("🤫 Load Auto Reel Silent", "Load silent instant reel and normal auto reel system", function()
-    if not moduleStatus.autoReel then
-        print("📦 Loading Auto Reel Silent module...")
+-- Settings Tab Content
+local EmergencySection = SettingsTab:NewSection("🚨 Emergency Controls")
+
+EmergencySection:NewButton("🛑 Emergency Stop", "Stop ALL processes and clean memory immediately", function()
+    print("🚨 EMERGENCY STOP INITIATED FROM UI 🚨")
+    
+    local function emergencyStop()
+        local totalStopped = 0
         
-        pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_reel_instant.lua"))()
-            moduleStatus.autoReel = true
-            
-            game.StarterGui:SetCore("SendNotification", {
-                Title = "Module Loader";
-                Text = "🤫 Auto Reel Silent loaded successfully!";
-                Duration = 3;
-            })
-            
-            print("✅ Auto Reel Silent module loaded successfully!")
-        end)
-    else
+        -- Stop all processes
+        if _G.AutoAppraiserHeadless then
+            pcall(function()
+                _G.AutoAppraiserHeadless.stop()
+                totalStopped = totalStopped + 1
+            end)
+        end
+        
+        if _G.AutoReelHeadless then
+            pcall(function()
+                _G.AutoReelHeadless.stop()
+                totalStopped = totalStopped + 1
+            end)
+        end
+        
+        -- Clean globals
+        _G.AutoAppraiserHeadless = nil
+        _G.AutoReelHeadless = nil
+        
+        -- Force garbage collection
+        collectgarbage("collect")
+        
         game.StarterGui:SetCore("SendNotification", {
-            Title = "Module Loader";
-            Text = "⚠️ Auto Reel Silent already loaded!";
-            Duration = 2;
+            Title = "🛑 Emergency Stop";
+            Text = "All processes stopped! Memory cleaned.";
+            Duration = 5;
         })
-    end
-end)
-
--- Load All Modules at Once
-LoaderSection:NewButton("🚀 Load All Modules", "Load both Auto Appraiser and Auto Reel Silent", function()
-    print("🚀 Loading all modules...")
-    
-    -- Load Auto Appraiser if not loaded
-    if not moduleStatus.appraiser then
-        pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_appraiser.lua"))()
-            moduleStatus.appraiser = true
-            print("✅ Auto Appraiser module loaded!")
-        end)
-    end
-    
-    -- Load Auto Reel Silent if not loaded
-    if not moduleStatus.autoReel then
-        pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_reel_instant.lua"))()
-            moduleStatus.autoReel = true
-            print("✅ Auto Reel Silent module loaded!")
-        end)
-    end
-    
-    game.StarterGui:SetCore("SendNotification", {
-        Title = "Module Loader";
-        Text = "🚀 All modules loaded successfully!";
-        Duration = 3;
-    })
-end)
-
--- Reload/Update Modules
-LoaderSection:NewButton("🔄 Reload All Modules", "Force reload all modules (for updates)", function()
-    print("🔄 Force reloading all modules...")
-    
-    -- Reset status and force reload
-    moduleStatus.appraiser = false
-    moduleStatus.autoReel = false
-    
-    pcall(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_appraiser.lua"))()
-        moduleStatus.appraiser = true
-        print("🔄 Auto Appraiser module reloaded!")
-    end)
-    
-    pcall(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_reel_instant.lua"))()
-        moduleStatus.autoReel = true
-        print("🔄 Auto Reel Silent module reloaded!")
-    end)
-    
-    game.StarterGui:SetCore("SendNotification", {
-        Title = "Module Loader";
-        Text = "🔄 All modules reloaded successfully!";
-        Duration = 3;
-    })
-end)
-
--- Status Display
-local appraiserStatusLabel = StatusSection:NewLabel("🎯 Auto Appraiser: Not Loaded")
-local reelStatusLabel = StatusSection:NewLabel("🤫 Auto Reel Silent: Not Loaded")
-
--- Status Update Loop
-task.spawn(function()
-    while true do
-        task.wait(2)
         
-        local appraiserText = moduleStatus.appraiser and "Loaded ✅" or "Not Loaded ❌"
-        local reelText = moduleStatus.autoReel and "Loaded ✅" or "Not Loaded ❌"
-        
-        appraiserStatusLabel:UpdateLabel("🎯 Auto Appraiser: " .. appraiserText)
-        reelStatusLabel:UpdateLabel("🤫 Auto Reel Silent: " .. reelText)
+        print("✅ Emergency stop completed! Stopped: " .. totalStopped .. " processes")
     end
+    
+    emergencyStop()
 end)
 
--- Information Tab
-local InfoTab = Window:NewTab("ℹ️ Information")
-local AboutSection = InfoTab:NewSection("About")
-local ModulesSection = InfoTab:NewSection("Available Modules")
-local UpdatesSection = InfoTab:NewSection("Updates & Links")
+EmergencySection:NewLabel("⚠️ Use when game is lagging badly")
+EmergencySection:NewLabel("🧹 Cleans all memory and stops processes")
 
--- About Information
-AboutSection:NewLabel("🎣 Fisch Auto Tools Hub")
-AboutSection:NewLabel("Modular script loader for Fisch game automation")
-AboutSection:NewLabel("Each module loads independently with its own UI")
-AboutSection:NewLabel("Easy to update and maintain separately")
+local RecoverySection = SettingsTab:NewSection("🔄 Recovery Controls")
 
--- Module Information
-ModulesSection:NewLabel("🎯 AUTO APPRAISER MODULE:")
-ModulesSection:NewLabel("• Automatic fish/rod appraisal")
-ModulesSection:NewLabel("• Mutation filtering (Albino, Midas, etc.)")
-ModulesSection:NewLabel("• Auto teleport to appraiser NPCs")
-ModulesSection:NewLabel("• Smart conversation handling")
-
-ModulesSection:NewLabel("")
-ModulesSection:NewLabel("🤫 AUTO REEL SILENT MODULE:")
-ModulesSection:NewLabel("• Silent instant reel (Ghost Mode)")
-ModulesSection:NewLabel("• Normal auto reel with animations")
-ModulesSection:NewLabel("• Zero movement fishing")
-ModulesSection:NewLabel("• Zero movement fishing")
-ModulesSection:NewLabel("• Auto shake bypass")
-
--- Update Information
-UpdatesSection:NewLabel("📦 MODULE URLS:")
-UpdatesSection:NewLabel("Auto Appraiser:")
-UpdatesSection:NewLabel("github.com/donitono/simpleaja/auto_appraiser.lua")
-UpdatesSection:NewLabel("")
-UpdatesSection:NewLabel("Auto Reel Silent:")
-UpdatesSection:NewLabel("github.com/donitono/simpleaja/auto_reel_instant.lua")
-UpdatesSection:NewLabel("")
-UpdatesSection:NewLabel("🔄 Use 'Reload All' to get latest updates!")
-
--- Quick Load Tab for Easy Access
-local QuickTab = Window:NewTab("⚡ Quick Load")
-local QuickSection = QuickTab:NewSection("One-Click Loading")
-
-QuickSection:NewButton("⚡ Load Everything Now", "Quick load all modules instantly", function()
-    pcall(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_appraiser.lua"))()
-        moduleStatus.appraiser = true
-    end)
+RecoverySection:NewButton("🔄 Smart Recovery", "Detect and fix script issues automatically", function()
+    print("🔄 SMART RECOVERY INITIATED 🔄")
     
-    pcall(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_reel_instant.lua"))()
-        moduleStatus.autoReel = true
-    end)
+    local function smartRecovery()
+        local fixed = 0
+        
+        -- Check and fix Auto Appraiser
+        if not _G.AutoAppraiserHeadless then
+            print("🎯 Reloading Auto Appraiser...")
+            pcall(function()
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_appraiser_headless.lua"))()
+                fixed = fixed + 1
+                print("✅ Auto Appraiser recovered")
+            end)
+        else
+            print("🎯 Auto Appraiser is healthy")
+        end
+        
+        -- Check and fix Auto Reel
+        if not _G.AutoReelHeadless then
+            print("🤫 Reloading Auto Reel...")
+            pcall(function()
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_reel_headless.lua"))()
+                fixed = fixed + 1
+                print("✅ Auto Reel recovered")
+            end)
+        else
+            print("🤫 Auto Reel is healthy")
+        end
+        
+        -- Force cleanup
+        collectgarbage("collect")
+        
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "🔄 Smart Recovery";
+            Text = "Recovery completed! Fixed: " .. fixed .. " modules";
+            Duration = 4;
+        })
+        
+        print("✅ Smart recovery completed! Fixed: " .. fixed .. " modules")
+    end
+    
+    smartRecovery()
+end)
+
+RecoverySection:NewButton("🔄 Full Reload", "Reload all modules from GitHub", function()
+    print("🔄 FULL RELOAD INITIATED 🔄")
+    
+    local function fullReload()
+        -- Stop existing processes
+        if _G.AutoAppraiserHeadless then _G.AutoAppraiserHeadless.stop() end
+        if _G.AutoReelHeadless then _G.AutoReelHeadless.stop() end
+        
+        -- Clean globals
+        _G.AutoAppraiserHeadless = nil
+        _G.AutoReelHeadless = nil
+        
+        -- Reload both modules
+        pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_appraiser_headless.lua"))()
+            print("✅ Auto Appraiser reloaded")
+        end)
+        
+        pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_reel_headless.lua"))()
+            print("✅ Auto Reel reloaded")
+        end)
+        
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "🔄 Full Reload";
+            Text = "All modules reloaded from GitHub!";
+            Duration = 4;
+        })
+        
+        print("✅ Full reload completed!")
+    end
+    
+    fullReload()
+end)
+
+RecoverySection:NewLabel("🔧 Auto-detect and fix script problems")
+RecoverySection:NewLabel("📥 Get latest updates from GitHub")
+
+local MaintenanceSection = SettingsTab:NewSection("🛠️ Maintenance")
+
+MaintenanceSection:NewButton("🧹 Clean Memory", "Force garbage collection", function()
+    collectgarbage("collect")
+    print("🧹 Memory cleaned!")
     
     game.StarterGui:SetCore("SendNotification", {
-        Title = "Quick Load";
-        Text = "⚡ Everything loaded instantly!";
-        Duration = 3;
+        Title = "🧹 Memory Clean";
+        Text = "Garbage collection completed!";
+        Duration = 2;
     })
-    
-    print("⚡ Quick Load Complete - All modules ready!")
 end)
 
-QuickSection:NewLabel("⚡ This will load both modules immediately")
-QuickSection:NewLabel("Each module will open its own UI window")
-QuickSection:NewLabel("Use this for fastest setup experience")
+MaintenanceSection:NewButton("📊 Health Check", "Check all modules status", function()
+    print("📊 HEALTH CHECK 📊")
+    
+    local appraiserStatus = _G.AutoAppraiserHeadless and "✅ Loaded" or "❌ Missing"
+    local reelStatus = _G.AutoReelHeadless and "✅ Loaded" or "❌ Missing"
+    local appraiserRunning = _G.AutoAppraiserHeadless and _G.AutoAppraiserHeadless.isRunning() and "🟢 Running" or "🔴 Stopped"
+    local reelRunning = _G.AutoReelHeadless and _G.AutoReelHeadless.isRunning() and "🟢 Running" or "🔴 Stopped"
+    
+    print("🎯 Auto Appraiser: " .. appraiserStatus .. " | " .. appraiserRunning)
+    print("🤫 Auto Reel: " .. reelStatus .. " | " .. reelRunning)
+    
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "📊 Health Check";
+        Text = "Check console for detailed status";
+        Duration = 3;
+    })
+end)
 
--- Welcome Messages
+MaintenanceSection:NewLabel("🔍 Monitor script health and performance")
+
+-- Welcome message
 game.StarterGui:SetCore("SendNotification", {
-    Title = "Fisch Auto Tools Hub";
-    Text = "🏠 Main loader ready! Load modules as needed.";
+    Title = "🎣 Fisch Auto Tools";
+    Text = "� Modules loaded! Use toggles to start.";
     Duration = 3;
 })
 
-print("🏠 Fisch Auto Tools Hub loaded successfully!")
-print("🎯 Available Modules:")
-print("  • Auto Appraiser (mutation filtering)")
-print("  • Auto Reel Silent (ghost mode fishing)")
+print("🎣 Fisch Auto Tools loaded successfully!")
+print("✅ Available Features:")
+print("  🎯 Auto Appraiser (mutation filtering)")
+print("  🤫 Auto Reel Silent (ghost mode)")
+print("  📊 Real-time status monitoring")
+print("  ⚙️ Emergency stop & recovery")
 print("")
-print("💡 Each module loads independently with separate UI")
-print("🔄 Easy to update individual modules via reload")
-print("⚡ Use Quick Load for instant setup!")
+print("� Use toggle switches to enable features")
+print("🛑 Emergency stop available in Settings tab")
+print("🔄 Recovery tools for script issues")
 print("")
 print("📦 Repository: https://github.com/donitono/simpleaja")
-print("🚀 Main Loader: loadstring(game:HttpGet('https://raw.githubusercontent.com/donitono/simpleaja/main/main.lua'))()")
+print("🚀 Load: loadstring(game:HttpGet('https://raw.githubusercontent.com/donitono/simpleaja/main/main.lua'))()")
