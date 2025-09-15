@@ -22,31 +22,51 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/ma
 print("🎣 Loading Auto Reel Instant...")
 loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/simpleaja/main/auto_reel_instant.lua"))()
 
--- Create simple toggle UI
+-- Create UI with separate tabs for each feature
 local UI = Kavo.CreateLib("🎣 Fisch Tools", "Synapse")
 _G.MainFischGUI = UI
 
-local MainTab = UI:NewTab("Features")
-local Section = MainTab:NewSection("Toggle")
+-- Auto Appraiser Tab
+local ApprTab = UI:NewTab("🔍 Auto Appraiser")
+local ApprSection = ApprTab:NewSection("Mutation Filtering")
 
--- Auto Appraiser Toggle
-Section:NewToggle("Auto Appraiser", "", function(state)
+ApprSection:NewToggle("Enable Auto Appraiser", "Filter and appraise mutations", function(state)
     if _G.flags then
         _G.flags['autoappraise'] = state
         print(state and "🔍 Auto Appraiser: ON" or "🔍 Auto Appraiser: OFF")
     end
 end)
 
--- Auto Reel Toggle  
-Section:NewToggle("Silent Instant Reel", "", function(state)
+ApprSection:NewLabel("Supported Mutations (19 types):")
+ApprSection:NewLabel("• Albino, Darkened, Frozen")
+ApprSection:NewLabel("• Ghastly, Golden, Glossy") 
+ApprSection:NewLabel("• Hexed, Lunar, Magnetic")
+ApprSection:NewLabel("• Mosaic, Mythical, Negative")
+ApprSection:NewLabel("• Overcast, Plastic, Shiny")
+ApprSection:NewLabel("• Sinister, Sparkling, Translucent, Viral")
+
+-- Auto Reel Tab
+local ReelTab = UI:NewTab("🎣 Silent Reel")
+local ReelSection = ReelTab:NewSection("Instant Fishing")
+
+ReelSection:NewToggle("Enable Silent Reel", "Zero movement instant catch", function(state)
     if _G.flags then
         _G.flags['superinstantsilent'] = state
         print(state and "🎣 Silent Reel: ON" or "🎣 Silent Reel: OFF")
     end
 end)
 
--- Exit button
-Section:NewButton("Exit", "", function()
+ReelSection:NewLabel("Features:")
+ReelSection:NewLabel("• Zero character movement")
+ReelSection:NewLabel("• Animation blocking")
+ReelSection:NewLabel("• Instant reel completion")
+ReelSection:NewLabel("• Silent operation")
+
+-- Exit Tab
+local ExitTab = UI:NewTab("🚪 Exit")
+local ExitSection = ExitTab:NewSection("Safe Shutdown")
+
+ExitSection:NewButton("Safe Exit", "Disable all scripts safely", function()
     -- Safe shutdown
     if _G.flags then
         for flag, _ in pairs(_G.flags) do
