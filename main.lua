@@ -281,31 +281,31 @@ RecoverySection:NewLabel("📥 Get latest updates from GitHub")
 
 local MaintenanceSection = SettingsTab:NewSection("🛠️ Maintenance")
 
-MaintenanceSection:NewButton("🧹 Clean Memory", "Force garbage collection", function()
-    collectgarbage("collect")
-    print("🧹 Memory cleaned!")
-    
-    game.StarterGui:SetCore("SendNotification", {
-        Title = "🧹 Memory Clean";
-        Text = "Garbage collection completed!";
-        Duration = 2;
-    })
-end)
-
 MaintenanceSection:NewButton("📊 Health Check", "Check all modules status", function()
     print("📊 HEALTH CHECK 📊")
     
     local appraiserStatus = _G.AutoAppraiserHeadless and "✅ Loaded" or "❌ Missing"
     local reelStatus = _G.AutoReelHeadless and "✅ Loaded" or "❌ Missing"
-    local appraiserRunning = _G.AutoAppraiserHeadless and _G.AutoAppraiserHeadless.isRunning() and "🟢 Running" or "🔴 Stopped"
-    local reelRunning = _G.AutoReelHeadless and _G.AutoReelHeadless.isRunning() and "🟢 Running" or "🔴 Stopped"
+    local appraiserRunning = "🔴 Stopped"
+    local reelRunning = "🔴 Stopped"
+    
+    if _G.AutoAppraiserHeadless and _G.AutoAppraiserHeadless.isRunning then
+        appraiserRunning = _G.AutoAppraiserHeadless.isRunning() and "🟢 Running" or "🔴 Stopped"
+    end
+    
+    if _G.AutoReelHeadless and _G.AutoReelHeadless.isRunning then
+        reelRunning = _G.AutoReelHeadless.isRunning() and "🟢 Running" or "🔴 Stopped"
+    end
     
     print("🎯 Auto Appraiser: " .. appraiserStatus .. " | " .. appraiserRunning)
     print("🤫 Auto Reel: " .. reelStatus .. " | " .. reelRunning)
     
+    local statusSummary = "Appraiser: " .. (appraiserRunning == "🟢 Running" and "ON" or "OFF") .. 
+                         " | Reel: " .. (reelRunning == "🟢 Running" and "ON" or "OFF")
+    
     game.StarterGui:SetCore("SendNotification", {
         Title = "📊 Health Check";
-        Text = "Check console for detailed status";
+        Text = statusSummary;
         Duration = 3;
     })
 end)
