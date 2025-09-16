@@ -128,6 +128,18 @@ ReelSection:NewToggle("💨 Fast Bobber", "Accelerate bobber to water instantly"
     end
 end)
 
+ReelSection:NewTextBox("📏 Bobber Max Distance", "Set max bobber distance from player (default 25)", function(val)
+    local num = tonumber(val)
+    if num and _G.AutoReelHeadless then
+        _G.AutoReelHeadless.setMaxBobberDistance(num)
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Bobber Distance Updated";
+            Text = "Max bobber distance set to " .. num;
+            Duration = 2;
+        })
+    end
+end)
+
 local ReelInfoSection = ReelTab:NewSection("Features Information")
 ReelInfoSection:NewLabel("🎮 Available features:")
 ReelInfoSection:NewLabel("• Silent instant fishing")

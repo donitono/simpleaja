@@ -52,9 +52,20 @@ local settings = {
     instantReel = true,
     autoShake = true,
     zeroAnimation = true,
-    instantCast = true,  -- New feature
-    fastBobber = true    -- New feature
+    instantCast = true,   -- Speed up rod casting 5x
+    fastBobber = true,    -- Eliminate arc trajectory - straight fall
+    instantBobber = true, -- Skip arc completely with teleport
+    maxBobberDistance = 25 -- Jarak maksimum bobber dari player
 }
+
+-- Fungsi global untuk diakses UI
+_G.AutoReelHeadless = _G.AutoReelHeadless or {}
+function _G.AutoReelHeadless.setMaxBobberDistance(val)
+    if type(val) == "number" and val > 0 then
+        settings.maxBobberDistance = val
+        print("[AutoReel] Max bobber distance set to:", val)
+    end
+end
 
 end
 
@@ -85,7 +96,7 @@ local function instantCast()
     end
 end
 
--- Fast Bobber System - Accelerate bobber to water
+-- Fast Bobber System - Eliminate arc trajectory and make straight fall
 local function fastBobber()
     if not isRunning or not settings.fastBobber then return end
     
@@ -115,25 +126,50 @@ local function fastBobber()
         end
     end)
     
-    -- Method 2: Physical bobber acceleration (backup method)
+    -- Method 2: Eliminate arc trajectory - make bobber fall straight down
     local workspace = game.Workspace
     for _, obj in pairs(workspace:GetDescendants()) do
         if obj.Name == "Bobber" or obj.Name == "FishingBobber" or string.find(obj.Name:lower(), "bobber") then
-            if obj:IsA("BasePart") and obj.AssemblyLinearVelocity then
-                -- Accelerate bobber downward if it's falling slowly
-                local velocity = obj.AssemblyLinearVelocity
-                if velocity.Y > -50 and velocity.Y < 0 then -- If falling slowly
-                    obj.AssemblyLinearVelocity = Vector3.new(velocity.X, -100, velocity.Z) -- Speed up fall
+            if obj:IsA("BasePart") then
+                
+                -- ELIMINATE ARC: Force straight down movement
+                if obj.AssemblyLinearVelocity then
+                    local velocity = obj.AssemblyLinearVelocity
+                    -- Remove horizontal movement, keep only straight down
+                    obj.AssemblyLinearVelocity = Vector3.new(0, math.min(velocity.Y, -80), 0)
                 end
                 
-                -- Also reduce air resistance
+                -- FORCE STRAIGHT TRAJECTORY: Override physics
                 if obj:FindFirstChild("BodyVelocity") then
                     obj.BodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
-                    obj.BodyVelocity.Velocity = Vector3.new(0, -100, 0)
+                    obj.BodyVelocity.Velocity = Vector3.new(0, -120, 0) -- Pure vertical fall
+                elseif not obj:FindFirstChild("BodyVelocity") then
+                    -- Create BodyVelocity to force straight movement
+                    local bodyVel = Instance.new("BodyVelocity")
+                    bodyVel.MaxForce = Vector3.new(4000, 4000, 4000)
+                    bodyVel.Velocity = Vector3.new(0, -120, 0)
+                    bodyVel.Parent = obj
+                    
+                    -- Auto cleanup after 2 seconds
+                    game:GetService("Debris"):AddItem(bodyVel, 2)
                 end
                 
+                -- DISABLE ARC PHYSICS: Remove position constraints
                 if obj:FindFirstChild("BodyPosition") then
-                    obj.BodyPosition.MaxForce = Vector3.new(0, 0, 0) -- Disable position control
+                    obj.BodyPosition.MaxForce = Vector3.new(0, 0, 0)
+                end
+                
+                -- INSTANT TELEPORT: Skip arc completely if bobber is above water
+                if settings.instantBobber and obj.Position.Y > 10 then
+                    local character = LocalPlayer.Character
+                    if character and character:FindFirstChild("HumanoidRootPart") then
+                        local lookVec = character.HumanoidRootPart.CFrame.LookVector
+                        local maxDist = settings.maxBobberDistance or 25
+                        local targetPos = character.HumanoidRootPart.Position + lookVec * maxDist
+                        obj.CFrame = CFrame.new(targetPos.X, 5, targetPos.Z) -- Teleport ke jarak maksimum
+                        -- Force immediate water landing velocity
+                        obj.AssemblyLinearVelocity = Vector3.new(0, -10, 0)
+                    end
                 end
             end
         end
