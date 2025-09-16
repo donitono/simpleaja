@@ -64,6 +64,21 @@ function _G.AutoReelHeadless.setMaxBobberDistance(val)
     if type(val) == "number" and val > 0 then
         settings.maxBobberDistance = val
         print("[AutoReel] Max bobber distance set to:", val)
+        -- Force update bobber position if running
+        if isRunning and settings.instantBobber then
+            local workspace = game.Workspace
+            local character = LocalPlayer.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                local lookVec = character.HumanoidRootPart.CFrame.LookVector
+                local maxDist = settings.maxBobberDistance or 25
+                for _, obj in pairs(workspace:GetDescendants()) do
+                    if (obj.Name == "Bobber" or obj.Name == "FishingBobber" or string.find(obj.Name:lower(), "bobber")) and obj:IsA("BasePart") then
+                        obj.CFrame = CFrame.new(character.HumanoidRootPart.Position + lookVec * maxDist + Vector3.new(0, -character.HumanoidRootPart.Position.Y + 5, 0))
+                        obj.AssemblyLinearVelocity = Vector3.new(0, -10, 0)
+                    end
+                end
+            end
+        end
     end
 end
 
